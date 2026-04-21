@@ -514,6 +514,201 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
 .mb-16 { margin-bottom: 16px; }
 .text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hidden { display: none !important; }
+
+/* ===== Filter Bar ===== */
+.filter-bar {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filter-bar .filter-item { display: flex; align-items: center; gap: 8px; }
+.filter-bar .filter-item label { color: var(--text-secondary); font-size: 13px; white-space: nowrap; }
+.filter-bar .filter-item select, .filter-bar .filter-item input {
+  width: auto; min-width: 120px;
+}
+.filter-bar .filter-item input[type="text"] { width: 200px; }
+.filter-bar .filter-item input[type="datetime-local"] { width: 180px; }
+
+/* ===== Tab Filter ===== */
+.tab-filter {
+  display: flex; gap: 0; margin-bottom: 16px;
+}
+.tab-filter .tab-item {
+  padding: 8px 16px; cursor: pointer; font-size: 14px; color: var(--text-secondary);
+  border-bottom: 2px solid transparent; transition: all 0.2s;
+}
+.tab-filter .tab-item:hover { color: var(--primary); }
+.tab-filter .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* ===== Progress Bar ===== */
+.progress-bar {
+  display: flex; align-items: center; gap: 8px;
+}
+.progress-bar .progress-track {
+  flex: 1; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden;
+}
+.progress-bar .progress-fill {
+  height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s;
+}
+.progress-bar .progress-text {
+  font-size: 12px; color: var(--text-secondary); white-space: nowrap; min-width: 60px;
+}
+
+/* ===== Stat Cards ===== */
+.stat-cards {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--bg-card); border-radius: var(--radius-lg);
+  padding: 20px; box-shadow: var(--shadow-card);
+  display: flex; align-items: center; gap: 16px;
+}
+.stat-card .stat-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.stat-card .stat-icon.blue { background: #e6f7ff; color: var(--primary); }
+.stat-card .stat-icon.green { background: #f6ffed; color: var(--success); }
+.stat-card .stat-icon.red { background: #fff1f0; color: var(--error); }
+.stat-card .stat-icon.orange { background: #fff7e6; color: var(--warning); }
+.stat-card .stat-info h4 { font-size: 24px; font-weight: 600; margin: 0; }
+.stat-card .stat-info p { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; }
+.stat-card.clickable { cursor: pointer; transition: all 0.2s; }
+.stat-card.clickable:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+
+/* ===== Phone Preview ===== */
+.phone-preview {
+  width: 280px; background: #fff; border-radius: 24px;
+  border: 8px solid #1a1a1a; padding: 12px; position: relative;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.phone-preview::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 80px; height: 24px; background: #1a1a1a; border-radius: 0 0 16px 16px;
+}
+.phone-preview .phone-header {
+  text-align: center; padding: 8px 0 16px; font-size: 14px; color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light); margin-bottom: 12px;
+}
+.phone-preview .phone-content {
+  min-height: 300px; max-height: 400px; overflow-y: auto;
+}
+.phone-preview .chat-bubble {
+  background: #f0f0f0; padding: 12px 16px; border-radius: 0 12px 12px 12px;
+  max-width: 90%; font-size: 14px; line-height: 1.6; margin-bottom: 12px;
+  position: relative;
+}
+.phone-preview .chat-bubble::before {
+  content: ''; position: absolute; top: 0; left: -8px;
+  border-width: 0 8px 8px 0; border-style: solid;
+  border-color: transparent #f0f0f0 transparent transparent;
+}
+
+/* ===== Checkbox ===== */
+.checkbox-wrapper {
+  display: inline-flex; align-items: center; cursor: pointer;
+}
+.checkbox-wrapper input { display: none; }
+.checkbox-wrapper .checkbox {
+  width: 16px; height: 16px; border: 1px solid var(--border); border-radius: 2px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.checkbox-wrapper input:checked + .checkbox {
+  background: var(--primary); border-color: var(--primary);
+}
+.checkbox-wrapper .checkbox i { font-size: 12px; color: #fff; display: none; }
+.checkbox-wrapper input:checked + .checkbox i { display: block; }
+
+/* ===== Batch Actions Bar ===== */
+.batch-actions {
+  display: none; align-items: center; gap: 16px;
+  padding: 12px 16px; background: #e6f7ff; border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.batch-actions.show { display: flex; }
+.batch-actions .selected-count { color: var(--primary); font-size: 14px; }
+
+/* ===== Spinning Animation ===== */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spinning { animation: spin 1s linear infinite; }
+
+/* ===== Submenu Inner ===== */
+.menu-submenu-title.submenu-inner {
+  padding-left: 48px; height: 36px; font-size: 13px;
+}
+.layout-sider.collapsed .menu-submenu-title.submenu-inner {
+  padding-left: 0; justify-content: center;
+}
+.menu-sub .menu-sub { padding-left: 16px; }
+.menu-sub .menu-sub .menu-item { padding-left: 64px; }
+
+/* ===== Welcome Config Card ===== */
+.welcome-config-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: var(--shadow-card); padding: 24px; margin-bottom: 16px;
+}
+.welcome-config-card .config-item {
+  display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px;
+}
+.welcome-config-card .config-item:last-child { margin-bottom: 0; }
+.welcome-config-card .config-label {
+  width: 100px; flex-shrink: 0; font-size: 14px; color: var(--text-primary);
+  padding-top: 6px;
+}
+.welcome-config-card .config-content { flex: 1; }
+.welcome-config-card .config-help {
+  font-size: 12px; color: var(--text-tertiary); margin-top: 8px;
+}
+
+/* ===== Message Type Selector ===== */
+.msg-type-selector {
+  display: flex; gap: 12px;
+}
+.msg-type-item {
+  flex: 1; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; text-align: center; transition: all 0.2s;
+}
+.msg-type-item:hover { border-color: var(--primary); }
+.msg-type-item.active { border-color: var(--primary); background: #e6f7ff; }
+.msg-type-item i { font-size: 24px; color: var(--text-secondary); margin-bottom: 8px; }
+.msg-type-item.active i { color: var(--primary); }
+.msg-type-item p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+.msg-type-item.active p { color: var(--primary); }
+
+/* ===== Employee Selector ===== */
+.employee-selector {
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 12px;
+  max-height: 200px; overflow-y: auto;
+}
+.employee-selector .employee-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px;
+  border-radius: var(--radius); cursor: pointer; transition: background 0.2s;
+}
+.employee-selector .employee-item:hover { background: var(--bg-layout); }
+.employee-selector .employee-item.selected { background: #e6f7ff; }
+
+/* ===== Detail Modal ===== */
+.detail-section { margin-bottom: 20px; }
+.detail-section:last-child { margin-bottom: 0; }
+.detail-section h4 {
+  font-size: 14px; font-weight: 500; margin-bottom: 12px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border-light);
+}
+.detail-row {
+  display: flex; margin-bottom: 8px; font-size: 13px;
+}
+.detail-row .detail-label { width: 80px; color: var(--text-tertiary); flex-shrink: 0; }
+.detail-row .detail-value { flex: 1; color: var(--text-primary); }
+
+/* ===== Back Button ===== */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--text-secondary); cursor: pointer; font-size: 14px;
+  margin-right: 8px; transition: color 0.2s;
+}
+.back-btn:hover { color: var(--primary); }
 </style>
 </head>
 <body>
@@ -531,12 +726,12 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
   <!-- Sider -->
   <div class="layout-sider" id="sider">
     <ul class="menu">
-      <li class="menu-submenu-title open" onclick="toggleSubmenu(this)">
+      <li class="menu-submenu-title open" onclick="toggleSubmenu(this, 'submenu-customer')">
         <i class="ri-customer-service-2-line menu-icon"></i>
         <span>客户回访</span>
         <i class="ri-arrow-down-s-line arrow"></i>
       </li>
-      <ul class="menu-sub open" id="submenu">
+      <ul class="menu-sub open" id="submenu-customer">
         <li class="menu-item" data-route="#/segment/list" onclick="navigate('#/segment/list')">
           <i class="ri-group-line"></i><span>加微分群</span>
         </li>
@@ -546,9 +741,32 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
         <li class="menu-item" data-route="#/template/list" onclick="navigate('#/template/list')">
           <i class="ri-file-text-line"></i><span>消息模板</span>
         </li>
-        <li class="menu-item" data-route="#/broadcast/list" onclick="navigate('#/broadcast/list')">
-          <i class="ri-send-plane-2-line"></i><span>群发</span>
+        <li class="menu-submenu-title submenu-inner" onclick="event.stopPropagation(); toggleSubmenu(this, 'submenu-broadcast')">
+          <i class="ri-send-plane-2-line menu-icon"></i>
+          <span>群发</span>
+          <i class="ri-arrow-down-s-line arrow"></i>
         </li>
+        <ul class="menu-sub open" id="submenu-broadcast">
+          <li class="menu-item" data-route="#/broadcast/event" onclick="navigate('#/broadcast/event')">
+            <i class="ri-calendar-event-line"></i><span>群发事件</span>
+          </li>
+          <li class="menu-item" data-route="#/broadcast/record" onclick="navigate('#/broadcast/record')">
+            <i class="ri-chat-history-line"></i><span>群发消息记录</span>
+          </li>
+          <li class="menu-submenu-title submenu-inner" onclick="event.stopPropagation(); toggleSubmenu(this, 'submenu-welcome')">
+            <i class="ri-hand-heart-line menu-icon"></i>
+            <span>欢迎语</span>
+            <i class="ri-arrow-down-s-line arrow"></i>
+          </li>
+          <ul class="menu-sub open" id="submenu-welcome">
+            <li class="menu-item" data-route="#/welcome/manage" onclick="navigate('#/welcome/manage')">
+              <i class="ri-settings-3-line"></i><span>欢迎语管理</span>
+            </li>
+            <li class="menu-item" data-route="#/welcome/record" onclick="navigate('#/welcome/record')">
+              <i class="ri-history-line"></i><span>发送记录</span>
+            </li>
+          </ul>
+        </ul>
       </ul>
     </ul>
   </div>
@@ -595,7 +813,39 @@ const store = {
   ],
   nextSegmentId: 8,
   nextStrategyId: 6,
-  nextTemplateId: 6
+  nextTemplateId: 6,
+  // 群发事件数据
+  broadcastEvents: [
+    {id:1,name:"术后回访-4月第三批",sendType:"strategy",content:"尊敬的客户，您好！感谢您选择我们的服务，术后恢复期间请注意...",sender:"企业",targetCount:1200,sentCount:1200,sendTime:"2026-04-21 14:30",status:"completed"},
+    {id:2,name:"新客户欢迎推送",sendType:"manual",content:"欢迎关注我们！如有任何问题请随时联系客服...",sender:"企业",targetCount:856,sentCount:520,sendTime:"2026-04-21 15:00",status:"sending"},
+    {id:3,name:"促销活动通知",sendType:"strategy",content:"限时优惠活动开始啦！点击了解详情...",sender:"员工",targetCount:2000,sentCount:0,sendTime:"2026-04-22 10:00",status:"pending"},
+    {id:4,name:"会员关怀消息",sendType:"manual",content:"感谢您一直以来的支持，特此送上专属优惠...",sender:"企业",targetCount:500,sentCount:500,sendTime:"2026-04-20 09:00",status:"cancelled"},
+    {id:5,name:"回访提醒-第三批",sendType:"strategy",content:"您好，温馨提醒您预约的回访时间即将到来...",sender:"员工",targetCount:320,sentCount:280,sendTime:"2026-04-21 11:30",status:"sending"}
+  ],
+  // 群发消息记录数据
+  broadcastRecords: [
+    {id:1,customerName:"张三",wechatId:"wx_zhangsan",eventId:1,eventName:"术后回访-4月第三批",content:"尊敬的张三，您好！感谢您选择北京旗舰店进行眼部整形...",sendTime:"2026-04-21 14:30:25",status:"success",failReason:null},
+    {id:2,customerName:"李四",wechatId:"wx_lisi",eventId:1,eventName:"术后回访-4月第三批",content:"尊敬的李四，您好！感谢您选择北京旗舰店进行鼻部整形...",sendTime:"2026-04-21 14:30:26",status:"failed",failReason:"客户已删除好友"},
+    {id:3,customerName:"王五",wechatId:"wx_wangwu",eventId:2,eventName:"新客户欢迎推送",content:"欢迎关注我们！如有任何问题请随时联系客服...",sendTime:"2026-04-21 15:00:10",status:"success",failReason:null},
+    {id:4,customerName:"赵六",wechatId:"wx_zhaoliu",eventId:2,eventName:"新客户欢迎推送",content:"欢迎关注我们！如有任何问题请随时联系客服...",sendTime:"2026-04-21 15:00:11",status:"failed",failReason:"发送频率超限"},
+    {id:5,customerName:"钱七",wechatId:"wx_qianqi",eventId:3,eventName:"促销活动通知",content:"限时优惠活动开始啦！点击了解详情...",sendTime:"2026-04-22 10:00:00",status:"pending",failReason:null}
+  ],
+  // 欢迎语发送记录数据
+  welcomeRecords: [
+    {id:1,customerName:"张三",wechatId:"wx_zhangsan",employeeName:"李医生",content:"尊敬的张三，您好！感谢您选择我们，如有任何问题请随时联系我们...",messageType:"text",sendTime:"2026-04-21 14:30:25",status:"success",failReason:null},
+    {id:2,customerName:"李四",wechatId:"wx_lisi",employeeName:"王护士",content:"尊敬的李四，您好！感谢您的信任，以下是术后注意事项...",messageType:"image_text",sendTime:"2026-04-21 14:30:26",status:"failed",failReason:"客户已删除好友"},
+    {id:3,customerName:"王五",wechatId:"wx_wangwu",employeeName:"赵医生",content:"预约小程序",messageType:"mini_program",sendTime:"2026-04-21 14:30:27",status:"success",failReason:null}
+  ],
+  // 欢迎语配置
+  welcomeConfig: {
+    enabled: true,
+    messageType: 'text',
+    content: '尊敬的{{客户姓名}}，您好！欢迎关注我们，如有任何问题请随时联系。',
+    sendDelay: 'immediate',
+    selectedEmployees: ['李医生', '王护士', '赵医生']
+  },
+  // 员工列表
+  employees: ['李医生', '王护士', '赵医生', '张医生', '刘护士']
 };
 
 const VARIABLES = [
@@ -684,9 +934,12 @@ function updateMenu(hash) {
   });
 }
 
-function toggleSubmenu(el) {
+function toggleSubmenu(el, submenuId) {
   el.classList.toggle('open');
-  document.getElementById('submenu').classList.toggle('open');
+  if (submenuId) {
+    const submenu = document.getElementById(submenuId);
+    if (submenu) submenu.classList.toggle('open');
+  }
 }
 
 function router() {
@@ -715,7 +968,10 @@ function router() {
       const t = store.templates.find(x => x.id === id);
       renderTemplateForm(content, t || null);
     }
-    else if (hash === '#/broadcast/list') renderBroadcastPlaceholder(content);
+    else if (hash === '#/broadcast/event') renderBroadcastEventList(content);
+    else if (hash === '#/broadcast/record') renderBroadcastRecordList(content);
+    else if (hash === '#/welcome/manage') renderWelcomeManage(content);
+    else if (hash === '#/welcome/record') renderWelcomeRecord(content);
     else renderSegmentList(content);
   }, 400);
 }
@@ -1562,20 +1818,800 @@ function saveTemplate(editId) {
   navigate('#/template/list');
 }
 
-// ===== Broadcast Placeholder =====
-function renderBroadcastPlaceholder(container) {
+// ===== Broadcast Event List =====
+let broadcastEventFilter = { sendType: 'all', keyword: '' };
+
+function renderBroadcastEventList(container) {
+  const data = store.broadcastEvents;
+  
+  let tableRows = data.map(e => {
+    const progress = e.targetCount > 0 ? Math.round(e.sentCount / e.targetCount * 100) : 0;
+    const sendTypeTag = e.sendType === 'strategy' 
+      ? '<span class="tag tag-blue">策略触发</span>' 
+      : '<span class="tag tag-green">手动发送</span>';
+    
+    let statusTag = '';
+    if (e.status === 'pending') {
+      statusTag = '<span class="tag tag-orange">待发送</span>';
+    } else if (e.status === 'sending') {
+      statusTag = '<span class="tag tag-blue"><i class="ri-loader-4-line spinning"></i> 发送中</span>';
+    } else if (e.status === 'completed') {
+      statusTag = '<span class="tag tag-green">已完成</span>';
+    } else {
+      statusTag = '<span class="tag" style="color:#999;background:#f5f5f5;border-color:#d9d9d9">已取消</span>';
+    }
+    
+    let actions = '';
+    if (e.status === 'pending') {
+      actions = `
+        <a class="btn-link" onclick="showMessage('info','查看详情：${e.name}')">查看详情</a>
+        <a class="btn-link" onclick="remindBroadcast(${e.id})">提醒群发</a>
+        <a class="btn-link danger" onclick="cancelBroadcastEvent(${e.id},'${e.name}')">取消</a>
+      `;
+    } else if (e.status === 'sending') {
+      actions = `
+        <a class="btn-link" onclick="showMessage('info','查看详情：${e.name}')">查看详情</a>
+        <a class="btn-link danger" onclick="cancelBroadcastEvent(${e.id},'${e.name}')">取消</a>
+      `;
+    } else {
+      actions = `<a class="btn-link" onclick="showMessage('info','查看详情：${e.name}')">查看详情</a>`;
+    }
+    
+    return `
+      <tr>
+        <td><span class="link" onclick="showMessage('info','查看群发事件：${e.name}')">${e.name}</span></td>
+        <td>${sendTypeTag}</td>
+        <td><span class="text-ellipsis" title="${e.content}">${e.content.substring(0,30)}${e.content.length>30?'...':''}</span></td>
+        <td>${e.sender}</td>
+        <td>${e.targetCount.toLocaleString()}</td>
+        <td><span class="link" onclick="navigate('#/broadcast/record?eventId=${e.id}')">${e.sentCount.toLocaleString()}</span></td>
+        <td>
+          <div class="progress-bar">
+            <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
+            <span class="progress-text">${progress}%</span>
+          </div>
+        </td>
+        <td>${e.sendTime}</td>
+        <td>${statusTag}</td>
+        <td><div class="actions">${actions}</div></td>
+      </tr>
+    `;
+  }).join('');
+
   container.innerHTML = `
     <div class="breadcrumb">
-      <a href="#/broadcast/list">客户回访</a>
+      <a href="#/segment/list">客户回访</a>
       <span class="sep">/</span>
-      <span class="current">群发</span>
+      <a href="#/broadcast/event">群发</a>
+      <span class="sep">/</span>
+      <span class="current">群发事件</span>
+    </div>
+    <div class="page-header">
+      <h2>群发事件</h2>
+      <button class="btn btn-primary" onclick="showMessage('info','手动群发功能')"><i class="ri-add-line"></i> 手动群发</button>
     </div>
     <div class="card">
-      <div class="empty-state">
-        <i class="ri-send-plane-2-line"></i>
-        <p>群发功能暂未开放，敬请期待</p>
+      <div class="tab-filter" id="send-type-filter">
+        <div class="tab-item ${broadcastEventFilter.sendType==='all'?'active':''}" onclick="filterBroadcastEvent('all')">全部</div>
+        <div class="tab-item ${broadcastEventFilter.sendType==='strategy'?'active':''}" onclick="filterBroadcastEvent('strategy')">策略触发</div>
+        <div class="tab-item ${broadcastEventFilter.sendType==='manual'?'active':''}" onclick="filterBroadcastEvent('manual')">手动发送</div>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>时间范围</label>
+          <input type="datetime-local" id="event-start-time">
+          <span>至</span>
+          <input type="datetime-local" id="event-end-time">
+        </div>
+        <div class="filter-item">
+          <input type="text" id="event-search" placeholder="搜索群发名称" value="${broadcastEventFilter.keyword}">
+        </div>
+        <button class="btn" onclick="searchBroadcastEvent()"><i class="ri-search-line"></i> 搜索</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>群发名称</th><th>发送方式</th><th>群发内容</th><th>主体</th><th>发送客户数</th><th>已发消息数</th><th>发送进度</th><th>发送时间</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="total">共 ${data.length} 条</span>
+        <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
+        <span class="page-btn active">1</span>
+        <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
       </div>
     </div>`;
+}
+
+function filterBroadcastEvent(type) {
+  broadcastEventFilter.sendType = type;
+  renderBroadcastEventList(document.getElementById('page-content'));
+}
+
+function searchBroadcastEvent() {
+  broadcastEventFilter.keyword = document.getElementById('event-search').value;
+  showMessage('info', '搜索功能');
+}
+
+function remindBroadcast(id) {
+  showMessage('success', '已发送提醒通知');
+}
+
+function cancelBroadcastEvent(id, name) {
+  showModal({
+    width: 420,
+    title: '确认取消',
+    content: `
+      <div class="confirm-icon"><i class="ri-error-warning-line"></i></div>
+      <div class="confirm-body">确定取消群发事件 <span class="highlight">"${name}"</span> 吗？取消后将停止发送。</div>`,
+    footer: `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-danger" onclick="confirmCancelBroadcastEvent(${id})">确定取消</button>`
+  });
+}
+
+function confirmCancelBroadcastEvent(id) {
+  const e = store.broadcastEvents.find(x => x.id === id);
+  if (e) {
+    e.status = 'cancelled';
+  }
+  closeModal();
+  showMessage('success', '已取消群发事件');
+  renderBroadcastEventList(document.getElementById('page-content'));
+}
+
+// ===== Broadcast Record List =====
+let broadcastRecordFilter = { eventId: '', status: 'all', keyword: '' };
+let selectedRecordIds = [];
+
+function renderBroadcastRecordList(container) {
+  const data = store.broadcastRecords;
+  const events = store.broadcastEvents;
+  
+  // Get eventId from URL
+  const hash = window.location.hash;
+  const urlParams = new URLSearchParams(hash.split('?')[1] || '');
+  const urlEventId = urlParams.get('eventId');
+  if (urlEventId && !broadcastRecordFilter.eventId) {
+    broadcastRecordFilter.eventId = urlEventId;
+  }
+  
+  const eventOptions = events.map(e => 
+    `<option value="${e.id}" ${broadcastRecordFilter.eventId==e.id?'selected':''}>${e.name}</option>`
+  ).join('');
+  
+  let tableRows = data.map(r => {
+    let statusTag = '';
+    if (r.status === 'success') {
+      statusTag = '<span class="tag tag-green">发送成功</span>';
+    } else if (r.status === 'failed') {
+      statusTag = '<span class="tag tag-red">发送失败</span>';
+    } else {
+      statusTag = '<span class="tag tag-orange">待发送</span>';
+    }
+    
+    return `
+      <tr>
+        <td>
+          <label class="checkbox-wrapper">
+            <input type="checkbox" onchange="toggleRecordSelect(${r.id}, this.checked)">
+            <span class="checkbox"><i class="ri-check-line"></i></span>
+          </label>
+        </td>
+        <td>${r.customerName}</td>
+        <td>${r.wechatId}</td>
+        <td><span class="link" onclick="navigate('#/broadcast/event')">${r.eventName}</span></td>
+        <td><span class="text-ellipsis" title="${r.content}">${r.content.substring(0,30)}${r.content.length>30?'...':''}</span></td>
+        <td>${r.sendTime}</td>
+        <td>${statusTag}</td>
+        <td>${r.failReason || '-'}</td>
+        <td>
+          <div class="actions">
+            ${r.status === 'failed' ? `<a class="btn-link" onclick="resendRecord(${r.id})">重发</a>` : '-'}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/segment/list">客户回访</a>
+      <span class="sep">/</span>
+      <a href="#/broadcast/event">群发</a>
+      <span class="sep">/</span>
+      <span class="current">群发消息记录</span>
+    </div>
+    <div class="page-header">
+      <h2>群发消息记录</h2>
+    </div>
+    <div class="card">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>群发事件</label>
+          <select id="record-event-filter" onchange="broadcastRecordFilter.eventId=this.value">
+            <option value="">全部事件</option>
+            ${eventOptions}
+          </select>
+        </div>
+      </div>
+      <div class="tab-filter" id="record-status-filter">
+        <div class="tab-item ${broadcastRecordFilter.status==='all'?'active':''}" onclick="filterBroadcastRecord('all')">全部</div>
+        <div class="tab-item ${broadcastRecordFilter.status==='success'?'active':''}" onclick="filterBroadcastRecord('success')">发送成功</div>
+        <div class="tab-item ${broadcastRecordFilter.status==='failed'?'active':''}" onclick="filterBroadcastRecord('failed')">发送失败</div>
+        <div class="tab-item ${broadcastRecordFilter.status==='pending'?'active':''}" onclick="filterBroadcastRecord('pending')">待发送</div>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>时间范围</label>
+          <input type="datetime-local" id="record-start-time">
+          <span>至</span>
+          <input type="datetime-local" id="record-end-time">
+        </div>
+        <div class="filter-item">
+          <input type="text" id="record-search" placeholder="搜索客户姓名" value="${broadcastRecordFilter.keyword}">
+        </div>
+        <button class="btn" onclick="searchBroadcastRecord()"><i class="ri-search-line"></i> 搜索</button>
+      </div>
+      <div class="batch-actions" id="batch-actions">
+        <span class="selected-count">已选择 <strong id="selected-count">0</strong> 条</span>
+        <button class="btn btn-primary" onclick="batchResendRecords()"><i class="ri-refresh-line"></i> 批量重发</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px">
+                <label class="checkbox-wrapper">
+                  <input type="checkbox" id="select-all-records" onchange="toggleSelectAllRecords(this.checked)">
+                  <span class="checkbox"><i class="ri-check-line"></i></span>
+                </label>
+              </th>
+              <th>客户姓名</th><th>微信号</th><th>群发事件</th><th>发送内容</th><th>发送时间</th><th>发送状态</th><th>失败原因</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="total">共 ${data.length} 条</span>
+        <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
+        <span class="page-btn active">1</span>
+        <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
+      </div>
+    </div>`;
+  
+  selectedRecordIds = [];
+}
+
+function filterBroadcastRecord(status) {
+  broadcastRecordFilter.status = status;
+  renderBroadcastRecordList(document.getElementById('page-content'));
+}
+
+function searchBroadcastRecord() {
+  broadcastRecordFilter.keyword = document.getElementById('record-search').value;
+  showMessage('info', '搜索功能');
+}
+
+function toggleRecordSelect(id, checked) {
+  if (checked) {
+    if (!selectedRecordIds.includes(id)) selectedRecordIds.push(id);
+  } else {
+    selectedRecordIds = selectedRecordIds.filter(x => x !== id);
+  }
+  updateBatchActions();
+}
+
+function toggleSelectAllRecords(checked) {
+  if (checked) {
+    selectedRecordIds = store.broadcastRecords.filter(r => r.status === 'failed').map(r => r.id);
+  } else {
+    selectedRecordIds = [];
+  }
+  document.querySelectorAll('#page-content tbody .checkbox-wrapper input').forEach((input, i) => {
+    const record = store.broadcastRecords[i];
+    if (record && record.status === 'failed') {
+      input.checked = checked;
+    }
+  });
+  updateBatchActions();
+}
+
+function updateBatchActions() {
+  const batchBar = document.getElementById('batch-actions');
+  const countEl = document.getElementById('selected-count');
+  if (selectedRecordIds.length > 0) {
+    batchBar.classList.add('show');
+    countEl.textContent = selectedRecordIds.length;
+  } else {
+    batchBar.classList.remove('show');
+  }
+}
+
+function resendRecord(id) {
+  showMessage('success', '已重新发送');
+}
+
+function batchResendRecords() {
+  showMessage('success', `已批量重发 ${selectedRecordIds.length} 条消息`);
+  selectedRecordIds = [];
+  updateBatchActions();
+}
+
+// ===== Welcome Manage =====
+let welcomeConfigState = {};
+
+function renderWelcomeManage(container) {
+  const config = store.welcomeConfig;
+  welcomeConfigState = { ...config };
+  
+  const employeesHtml = store.employees.map(emp => `
+    <div class="employee-item ${config.selectedEmployees.includes(emp)?'selected':''}" onclick="toggleEmployee('${emp}')">
+      <label class="checkbox-wrapper">
+        <input type="checkbox" ${config.selectedEmployees.includes(emp)?'checked':''}>
+        <span class="checkbox"><i class="ri-check-line"></i></span>
+      </label>
+      <span>${emp}</span>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/segment/list">客户回访</a>
+      <span class="sep">/</span>
+      <a href="#/broadcast/event">群发</a>
+      <span class="sep">/</span>
+      <span class="current">欢迎语管理</span>
+    </div>
+    <div class="page-header">
+      <h2>欢迎语管理</h2>
+      <button class="btn" onclick="navigate('#/welcome/record')"><i class="ri-history-line"></i> 查看发送记录</button>
+    </div>
+    
+    <div class="welcome-config-card">
+      <div class="config-item">
+        <div class="config-label">欢迎语开关</div>
+        <div class="config-content">
+          <label class="switch">
+            <input type="checkbox" id="welcome-enabled" ${config.enabled?'checked':''} onchange="welcomeConfigState.enabled=this.checked">
+            <span class="slider"></span>
+          </label>
+          <span style="margin-left:12px;color:var(--text-secondary);font-size:13px">
+            ${config.enabled ? '已开启，新客户加微后将自动发送欢迎语' : '已关闭，新客户加微后不会发送欢迎语'}
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="welcome-config-card">
+      <div class="config-item">
+        <div class="config-label">消息类型</div>
+        <div class="config-content">
+          <div class="msg-type-selector" id="msg-type-selector">
+            <div class="msg-type-item ${config.messageType==='text'?'active':''}" onclick="selectMsgType('text')">
+              <i class="ri-file-text-line"></i>
+              <p>文本</p>
+            </div>
+            <div class="msg-type-item ${config.messageType==='image_text'?'active':''}" onclick="selectMsgType('image_text')">
+              <i class="ri-image-line"></i>
+              <p>图片+文本</p>
+            </div>
+            <div class="msg-type-item ${config.messageType==='mini_program'?'active':''}" onclick="selectMsgType('mini_program')">
+              <i class="ri-mini-program-line"></i>
+              <p>小程序卡片</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="config-item">
+        <div class="config-label">消息内容</div>
+        <div class="config-content">
+          <div class="editor-container">
+            <div class="editor-left">
+              <div class="editor-toolbar">
+                <button class="toolbar-btn" title="加粗" onclick="execFormat('bold')"><i class="ri-bold"></i></button>
+                <button class="toolbar-btn" title="斜体" onclick="execFormat('italic')"><i class="ri-italic"></i></button>
+                <div class="separator"></div>
+                <div style="position:relative">
+                  <button class="insert-var-btn" onclick="toggleWelcomeVarPanel()"><i class="ri-code-box-line"></i> 插入变量</button>
+                  <div class="var-panel" id="welcome-var-panel">
+                    <h4>选择变量</h4>
+                    <div class="var-list">
+                      ${VARIABLES.map(v => `
+                        <div class="var-item" onclick="insertWelcomeVariable('${v.key}')">
+                          <span class="var-name">${v.name}</span>
+                          <span class="var-key">${v.key}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="editor-area" id="welcome-editor" contenteditable="true" data-placeholder="请输入欢迎语内容..." oninput="onWelcomeEditorInput()">${config.content ? contentToEditorHtml(config.content) : ''}</div>
+              <div class="editor-footer">
+                <span>支持插入变量</span>
+                <span id="welcome-char-count">${config.content.length}/2000</span>
+              </div>
+            </div>
+            <div class="editor-right">
+              <div class="preview-area" style="display:flex;justify-content:center">
+                <div class="phone-preview">
+                  <div class="phone-header">微信</div>
+                  <div class="phone-content">
+                    <div id="welcome-preview">
+                      ${renderWelcomePreview(config.content)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="welcome-config-card">
+      <div class="config-item">
+        <div class="config-label">发送时机</div>
+        <div class="config-content">
+          <select id="send-delay" style="width:200px" onchange="welcomeConfigState.sendDelay=this.value">
+            <option value="immediate" ${config.sendDelay==='immediate'?'selected':''}>立即发送</option>
+            <option value="delay_5" ${config.sendDelay==='delay_5'?'selected':''}>延迟5秒</option>
+            <option value="delay_10" ${config.sendDelay==='delay_10'?'selected':''}>延迟10秒</option>
+            <option value="delay_30" ${config.sendDelay==='delay_30'?'selected':''}>延迟30秒</option>
+          </select>
+          <div class="config-help">设置客户加微成功后发送欢迎语的时间延迟</div>
+        </div>
+      </div>
+      
+      <div class="config-item">
+        <div class="config-label">适用范围</div>
+        <div class="config-content">
+          <div class="employee-selector">
+            ${employeesHtml}
+          </div>
+          <div class="config-help">选择哪些员工加微客户时发送欢迎语</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="welcome-config-card" style="padding:0">
+      <div class="footer-actions">
+        <button class="btn" onclick="resetWelcomeConfig()">重置</button>
+        <button class="btn btn-primary" onclick="saveWelcomeConfig()">保存配置</button>
+      </div>
+    </div>`;
+}
+
+function selectMsgType(type) {
+  welcomeConfigState.messageType = type;
+  document.querySelectorAll('#msg-type-selector .msg-type-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  event.currentTarget.classList.add('active');
+}
+
+function toggleWelcomeVarPanel() {
+  const panel = document.getElementById('welcome-var-panel');
+  panel.classList.toggle('show');
+}
+
+function insertWelcomeVariable(key) {
+  const editor = document.getElementById('welcome-editor');
+  editor.focus();
+  const tag = document.createElement('span');
+  tag.className = 'var-tag';
+  tag.contentEditable = 'false';
+  tag.dataset.var = key;
+  tag.innerHTML = `${key}<span class="remove-var" onclick="removeVarTag(this,event)">&times;</span>`;
+  
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    if (editor.contains(range.commonAncestorContainer)) {
+      range.insertNode(tag);
+      range.setStartAfter(tag);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      editor.appendChild(tag);
+    }
+  } else {
+    editor.appendChild(tag);
+  }
+  
+  document.getElementById('welcome-var-panel').classList.remove('show');
+  onWelcomeEditorInput();
+}
+
+function onWelcomeEditorInput() {
+  const editor = document.getElementById('welcome-editor');
+  const content = getEditorContent();
+  const charCount = document.getElementById('welcome-char-count');
+  charCount.textContent = `${content.length}/2000`;
+  charCount.classList.toggle('over', content.length >= 2000);
+  welcomeConfigState.content = content;
+  
+  const preview = document.getElementById('welcome-preview');
+  preview.innerHTML = renderWelcomePreview(content);
+}
+
+function renderWelcomePreview(content) {
+  if (!content.trim()) {
+    return '<div class="chat-bubble" style="color:var(--text-tertiary)">编辑内容后实时预览</div>';
+  }
+  let html = content;
+  VARIABLES.forEach(v => {
+    html = html.replace(new RegExp(v.key.replace(/[{}]/g, '\\$&'), 'g'), `<span style="color:var(--warning)">${v.example}</span>`);
+  });
+  return `<div class="chat-bubble">${html}</div>`;
+}
+
+function toggleEmployee(emp) {
+  const idx = welcomeConfigState.selectedEmployees.indexOf(emp);
+  if (idx > -1) {
+    welcomeConfigState.selectedEmployees.splice(idx, 1);
+  } else {
+    welcomeConfigState.selectedEmployees.push(emp);
+  }
+  renderWelcomeManage(document.getElementById('page-content'));
+}
+
+function resetWelcomeConfig() {
+  store.welcomeConfig = {
+    enabled: true,
+    messageType: 'text',
+    content: '尊敬的{{客户姓名}}，您好！欢迎关注我们，如有任何问题请随时联系。',
+    sendDelay: 'immediate',
+    selectedEmployees: ['李医生', '王护士', '赵医生']
+  };
+  showMessage('success', '已重置为默认配置');
+  renderWelcomeManage(document.getElementById('page-content'));
+}
+
+function saveWelcomeConfig() {
+  store.welcomeConfig = { ...welcomeConfigState };
+  showMessage('success', '保存成功');
+}
+
+// ===== Welcome Record =====
+let welcomeRecordFilter = { status: 'all', employee: '', keyword: '' };
+let selectedWelcomeIds = [];
+
+function renderWelcomeRecord(container) {
+  const data = store.welcomeRecords;
+  
+  // Calculate stats
+  const total = data.length;
+  const success = data.filter(r => r.status === 'success').length;
+  const failed = data.filter(r => r.status === 'failed').length;
+  const rate = total > 0 ? Math.round(success / total * 100) : 0;
+  
+  const employeeOptions = store.employees.map(emp => 
+    `<option value="${emp}" ${welcomeRecordFilter.employee===emp?'selected':''}>${emp}</option>`
+  ).join('');
+  
+  let tableRows = data.map(r => {
+    let statusTag = r.status === 'success' 
+      ? '<span class="tag tag-green">发送成功</span>' 
+      : '<span class="tag tag-red">发送失败</span>';
+    
+    let typeTag = '';
+    if (r.messageType === 'text') typeTag = '文本';
+    else if (r.messageType === 'image_text') typeTag = '图片+文本';
+    else typeTag = '小程序';
+    
+    return `
+      <tr>
+        <td>
+          <label class="checkbox-wrapper">
+            <input type="checkbox" onchange="toggleWelcomeSelect(${r.id}, this.checked)">
+            <span class="checkbox"><i class="ri-check-line"></i></span>
+          </label>
+        </td>
+        <td>${r.customerName}</td>
+        <td>${r.wechatId}</td>
+        <td>${r.employeeName}</td>
+        <td><span class="text-ellipsis" title="${r.content}">${r.content.substring(0,30)}${r.content.length>30?'...':''}</span></td>
+        <td>${typeTag}</td>
+        <td>${r.sendTime}</td>
+        <td>${statusTag}</td>
+        <td>${r.failReason || '-'}</td>
+        <td>
+          <div class="actions">
+            ${r.status === 'failed' ? `<a class="btn-link" onclick="resendWelcome(${r.id})">重发</a>` : ''}
+            <a class="btn-link" onclick="showWelcomeDetail(${r.id})">查看详情</a>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <span class="back-btn" onclick="navigate('#/welcome/manage')"><i class="ri-arrow-left-line"></i> 返回</span>
+      <a href="#/segment/list">客户回访</a>
+      <span class="sep">/</span>
+      <a href="#/broadcast/event">群发</a>
+      <span class="sep">/</span>
+      <a href="#/welcome/manage">欢迎语</a>
+      <span class="sep">/</span>
+      <span class="current">发送记录</span>
+    </div>
+    
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="ri-send-plane-line"></i></div>
+        <div class="stat-info"><h4>${total}</h4><p>总发送数</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="ri-checkbox-circle-line"></i></div>
+        <div class="stat-info"><h4>${success}</h4><p>发送成功</p></div>
+      </div>
+      <div class="stat-card clickable" onclick="filterWelcomeRecordByFailed()">
+        <div class="stat-icon red"><i class="ri-close-circle-line"></i></div>
+        <div class="stat-info"><h4>${failed}</h4><p>发送失败</p></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="ri-percent-line"></i></div>
+        <div class="stat-info"><h4>${rate}%</h4><p>成功率</p></div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="tab-filter" id="welcome-status-filter">
+        <div class="tab-item ${welcomeRecordFilter.status==='all'?'active':''}" onclick="filterWelcomeRecord('all')">全部</div>
+        <div class="tab-item ${welcomeRecordFilter.status==='success'?'active':''}" onclick="filterWelcomeRecord('success')">发送成功</div>
+        <div class="tab-item ${welcomeRecordFilter.status==='failed'?'active':''}" onclick="filterWelcomeRecord('failed')">发送失败</div>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>员工</label>
+          <select id="welcome-employee-filter" onchange="welcomeRecordFilter.employee=this.value">
+            <option value="">全部员工</option>
+            ${employeeOptions}
+          </select>
+        </div>
+        <div class="filter-item">
+          <label>时间范围</label>
+          <input type="datetime-local" id="welcome-start-time">
+          <span>至</span>
+          <input type="datetime-local" id="welcome-end-time">
+        </div>
+        <div class="filter-item">
+          <input type="text" id="welcome-search" placeholder="搜索客户姓名" value="${welcomeRecordFilter.keyword}">
+        </div>
+        <button class="btn" onclick="searchWelcomeRecord()"><i class="ri-search-line"></i> 搜索</button>
+      </div>
+      <div class="batch-actions" id="welcome-batch-actions">
+        <span class="selected-count">已选择 <strong id="welcome-selected-count">0</strong> 条</span>
+        <button class="btn btn-primary" onclick="batchResendWelcome()"><i class="ri-refresh-line"></i> 批量重发</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px">
+                <label class="checkbox-wrapper">
+                  <input type="checkbox" id="select-all-welcome" onchange="toggleSelectAllWelcome(this.checked)">
+                  <span class="checkbox"><i class="ri-check-line"></i></span>
+                </label>
+              </th>
+              <th>客户姓名</th><th>微信号</th><th>接收员工</th><th>发送内容</th><th>消息类型</th><th>发送时间</th><th>发送状态</th><th>失败原因</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="total">共 ${data.length} 条</span>
+        <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
+        <span class="page-btn active">1</span>
+        <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
+      </div>
+    </div>`;
+  
+  selectedWelcomeIds = [];
+}
+
+function filterWelcomeRecord(status) {
+  welcomeRecordFilter.status = status;
+  renderWelcomeRecord(document.getElementById('page-content'));
+}
+
+function filterWelcomeRecordByFailed() {
+  welcomeRecordFilter.status = 'failed';
+  renderWelcomeRecord(document.getElementById('page-content'));
+}
+
+function searchWelcomeRecord() {
+  welcomeRecordFilter.keyword = document.getElementById('welcome-search').value;
+  showMessage('info', '搜索功能');
+}
+
+function toggleWelcomeSelect(id, checked) {
+  if (checked) {
+    if (!selectedWelcomeIds.includes(id)) selectedWelcomeIds.push(id);
+  } else {
+    selectedWelcomeIds = selectedWelcomeIds.filter(x => x !== id);
+  }
+  updateWelcomeBatchActions();
+}
+
+function toggleSelectAllWelcome(checked) {
+  if (checked) {
+    selectedWelcomeIds = store.welcomeRecords.filter(r => r.status === 'failed').map(r => r.id);
+  } else {
+    selectedWelcomeIds = [];
+  }
+  document.querySelectorAll('#page-content tbody .checkbox-wrapper input').forEach((input, i) => {
+    const record = store.welcomeRecords[i];
+    if (record && record.status === 'failed') {
+      input.checked = checked;
+    }
+  });
+  updateWelcomeBatchActions();
+}
+
+function updateWelcomeBatchActions() {
+  const batchBar = document.getElementById('welcome-batch-actions');
+  const countEl = document.getElementById('welcome-selected-count');
+  if (selectedWelcomeIds.length > 0) {
+    batchBar.classList.add('show');
+    countEl.textContent = selectedWelcomeIds.length;
+  } else {
+    batchBar.classList.remove('show');
+  }
+}
+
+function resendWelcome(id) {
+  showMessage('success', '已重新发送');
+}
+
+function batchResendWelcome() {
+  showMessage('success', `已批量重发 ${selectedWelcomeIds.length} 条消息`);
+  selectedWelcomeIds = [];
+  updateWelcomeBatchActions();
+}
+
+function showWelcomeDetail(id) {
+  const r = store.welcomeRecords.find(x => x.id === id);
+  if (!r) return;
+  
+  let typeText = r.messageType === 'text' ? '文本' : r.messageType === 'image_text' ? '图片+文本' : '小程序';
+  let statusText = r.status === 'success' ? '发送成功' : '发送失败';
+  
+  showModal({
+    width: 600,
+    title: '发送详情',
+    content: `
+      <div class="detail-section">
+        <h4>客户信息</h4>
+        <div class="detail-row"><span class="detail-label">客户姓名</span><span class="detail-value">${r.customerName}</span></div>
+        <div class="detail-row"><span class="detail-label">微信号</span><span class="detail-value">${r.wechatId}</span></div>
+      </div>
+      <div class="detail-section">
+        <h4>消息内容</h4>
+        <div style="padding:12px;background:#f5f5f5;border-radius:var(--radius);line-height:1.6">${r.content}</div>
+        <div class="detail-row" style="margin-top:12px"><span class="detail-label">消息类型</span><span class="detail-value">${typeText}</span></div>
+      </div>
+      <div class="detail-section">
+        <h4>发送信息</h4>
+        <div class="detail-row"><span class="detail-label">接收员工</span><span class="detail-value">${r.employeeName}</span></div>
+        <div class="detail-row"><span class="detail-label">发送时间</span><span class="detail-value">${r.sendTime}</span></div>
+        <div class="detail-row"><span class="detail-label">发送状态</span><span class="detail-value">${statusText}</span></div>
+        ${r.failReason ? `<div class="detail-row"><span class="detail-label">失败原因</span><span class="detail-value" style="color:var(--error)">${r.failReason}</span></div>` : ''}
+      </div>
+    `,
+    footer: `<button class="btn btn-primary" onclick="closeModal()">关闭</button>`
+  });
 }
 
 // Close var panel when clicking outside
@@ -1584,6 +2620,12 @@ document.addEventListener('click', e => {
   if (panel && panel.classList.contains('show')) {
     if (!e.target.closest('.insert-var-btn') && !e.target.closest('.var-panel')) {
       panel.classList.remove('show');
+    }
+  }
+  const welcomePanel = document.getElementById('welcome-var-panel');
+  if (welcomePanel && welcomePanel.classList.contains('show')) {
+    if (!e.target.closest('.insert-var-btn') && !e.target.closest('.var-panel')) {
+      welcomePanel.classList.remove('show');
     }
   }
 });
