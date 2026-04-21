@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客户回访系统</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+:root {
+  --primary: #1890ff;
+  --primary-hover: #40a9ff;
+  --primary-active: #096dd9;
+  --success: #52c41a;
+  --warning: #fa8c16;
+  --error: #f5222d;
+  --info: #1890ff;
+  --text-primary: rgba(0,0,0,0.85);
+  --text-secondary: rgba(0,0,0,0.65);
+  --text-tertiary: rgba(0,0,0,0.45);
+  --border: #d9d9d9;
+  --border-light: #e8e8e8;
+  --bg-layout: #f0f2f5;
+  --bg-card: #ffffff;
+  --bg-table-header: #fafafa;
+  --bg-table-hover: #e6f7ff;
+  --bg-menu: #001529;
+  --bg-menu-hover: rgba(255,255,255,0.08);
+  --bg-menu-active: var(--primary);
+  --shadow-card: 0 1px 2px 0 rgba(0,0,0,0.03), 0 1px 6px -1px rgba(0,0,0,0.02), 0 2px 4px 0 rgba(0,0,0,0.02);
+  --shadow-modal: 0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05);
+  --radius: 4px;
+  --radius-lg: 8px;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-layout);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ===== Layout ===== */
+.layout { display: flex; height: 100vh; }
+.layout-header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 48px; background: var(--bg-menu);
+  display: flex; align-items: center; padding: 0 24px;
+  color: #fff; font-size: 16px; font-weight: 500;
+}
+.layout-header .logo { display: flex; align-items: center; gap: 10px; }
+.layout-header .logo i { font-size: 22px; color: var(--primary); }
+
+.layout-sider {
+  width: 200px; min-width: 200px; background: var(--bg-menu);
+  transition: width 0.2s, min-width 0.2s;
+  position: fixed; top: 48px; left: 0; bottom: 0; z-index: 99;
+  overflow-y: auto; overflow-x: hidden;
+}
+.layout-sider.collapsed { width: 48px; min-width: 48px; }
+.layout-sider::-webkit-scrollbar { width: 0; }
+
+.menu { list-style: none; padding: 8px 0; }
+.menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 24px; height: 40px; color: rgba(255,255,255,0.65);
+  cursor: pointer; transition: all 0.2s; white-space: nowrap; overflow: hidden;
+  font-size: 14px; user-select: none;
+}
+.menu-item:hover { color: #fff; background: var(--bg-menu-hover); }
+.menu-item.active { color: #fff; background: var(--bg-menu-active); }
+.menu-item i { font-size: 16px; min-width: 16px; text-align: center; }
+.menu-item span { transition: opacity 0.2s; }
+.layout-sider.collapsed .menu-item span { opacity: 0; pointer-events: none; }
+.layout-sider.collapsed .menu-item { padding: 0; justify-content: center; }
+
+.menu-submenu-title {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 24px; height: 40px; color: rgba(255,255,255,0.65);
+  cursor: pointer; transition: all 0.2s; white-space: nowrap; overflow: hidden;
+  font-size: 14px; user-select: none;
+}
+.menu-submenu-title:hover { color: #fff; background: var(--bg-menu-hover); }
+.menu-submenu-title i.menu-icon { font-size: 16px; min-width: 16px; text-align: center; }
+.menu-submenu-title i.arrow { font-size: 10px; margin-left: auto; transition: transform 0.2s; }
+.menu-submenu-title.open i.arrow { transform: rotate(180deg); }
+.layout-sider.collapsed .menu-submenu-title span,
+.layout-sider.collapsed .menu-submenu-title i.arrow { opacity: 0; pointer-events: none; }
+.layout-sider.collapsed .menu-submenu-title { padding: 0; justify-content: center; }
+
+.menu-sub { list-style: none; overflow: hidden; transition: max-height 0.2s; max-height: 0; }
+.menu-sub.open { max-height: 300px; }
+.menu-sub .menu-item { padding-left: 48px; height: 36px; font-size: 13px; }
+.layout-sider.collapsed .menu-sub .menu-item { padding-left: 0; justify-content: center; }
+
+.layout-content {
+  margin-left: 200px; margin-top: 48px;
+  flex: 1; height: calc(100vh - 48px);
+  overflow-y: auto; background: var(--bg-layout);
+  transition: margin-left 0.2s;
+}
+.layout-sider.collapsed ~ .layout-content { margin-left: 48px; }
+
+.content-wrapper { padding: 24px; min-height: 100%; }
+
+/* ===== Breadcrumb ===== */
+.breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 14px; }
+.breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+.breadcrumb a:hover { color: var(--primary); }
+.breadcrumb .sep { color: var(--text-tertiary); }
+.breadcrumb .current { color: var(--text-primary); }
+
+/* ===== Page Header ===== */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.page-header h2 { font-size: 20px; font-weight: 500; margin: 0; }
+
+/* ===== Card ===== */
+.card {
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: var(--shadow-card); padding: 24px;
+}
+
+/* ===== Button ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 15px; border-radius: var(--radius);
+  font-size: 14px; cursor: pointer; border: 1px solid var(--border);
+  background: #fff; color: var(--text-primary);
+  transition: all 0.2s; user-select: none; white-space: nowrap;
+}
+.btn:hover { border-color: var(--primary); color: var(--primary); }
+.btn-primary {
+  background: var(--primary); border-color: var(--primary); color: #fff;
+}
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+.btn-danger { color: var(--error); border-color: var(--error); }
+.btn-danger:hover { color: #fff; background: var(--error); border-color: var(--error); }
+.btn-link {
+  border: none; background: none; color: var(--primary); padding: 0; height: auto;
+  box-shadow: none;
+}
+.btn-link:hover { color: var(--primary-hover); }
+.btn-link.danger { color: var(--error); }
+.btn-link.danger:hover { color: #ff4d4f; }
+.btn-sm { height: 24px; padding: 0 7px; font-size: 12px; }
+.btn-dashed {
+  border-style: dashed; background: #fff;
+}
+.btn-dashed:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ===== Table ===== */
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: var(--bg-table-header); padding: 12px 16px;
+  text-align: left; font-weight: 500; color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light); white-space: nowrap;
+}
+tbody td {
+  padding: 12px 16px; border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary); max-width: 200px;
+}
+tbody tr { transition: background 0.2s; }
+tbody tr:hover { background: var(--bg-table-hover); }
+td .link { color: var(--primary); cursor: pointer; }
+td .link:hover { color: var(--primary-hover); text-decoration: underline; }
+td .text-ellipsis {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 200px; display: inline-block; vertical-align: middle;
+}
+td .actions { display: flex; gap: 8px; align-items: center; }
+
+/* ===== Tag ===== */
+.tag {
+  display: inline-block; padding: 0 7px; height: 22px; line-height: 22px;
+  border-radius: var(--radius); font-size: 12px; border: 1px solid;
+}
+.tag-blue { color: var(--primary); background: #e6f7ff; border-color: #91d5ff; }
+.tag-green { color: var(--success); background: #f6ffed; border-color: #b7eb8f; }
+.tag-orange { color: var(--warning); background: #fff7e6; border-color: #ffd591; }
+.tag-red { color: var(--error); background: #fff1f0; border-color: #ffa39e; }
+
+/* ===== Switch ===== */
+.switch {
+  position: relative; display: inline-block; width: 44px; height: 22px;
+  cursor: pointer; vertical-align: middle;
+}
+.switch input { display: none; }
+.switch .slider {
+  position: absolute; inset: 0; background: #ccc;
+  border-radius: 11px; transition: background 0.2s;
+}
+.switch .slider::before {
+  content: ''; position: absolute; left: 2px; top: 2px;
+  width: 18px; height: 18px; background: #fff; border-radius: 50%;
+  transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.switch input:checked + .slider { background: var(--primary); }
+.switch input:checked + .slider::before { transform: translateX(22px); }
+
+/* ===== Pagination ===== */
+.pagination {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px; margin-top: 16px; font-size: 13px; color: var(--text-secondary);
+}
+.pagination .page-btn {
+  min-width: 32px; height: 32px; display: inline-flex;
+  align-items: center; justify-content: center; border: 1px solid var(--border);
+  border-radius: var(--radius); background: #fff; cursor: pointer;
+  transition: all 0.2s; font-size: 13px; padding: 0 8px;
+}
+.pagination .page-btn:hover { border-color: var(--primary); color: var(--primary); }
+.pagination .page-btn.active { border-color: var(--primary); color: var(--primary); }
+.pagination .page-btn.disabled { color: var(--text-tertiary); cursor: not-allowed; border-color: var(--border-light); }
+.pagination .page-btn.disabled:hover { border-color: var(--border-light); color: var(--text-tertiary); }
+.pagination .total { margin-right: 8px; }
+
+/* ===== Modal ===== */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; transition: all 0.2s;
+}
+.modal-mask.show { opacity: 1; visibility: visible; }
+.modal {
+  background: #fff; border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  transform: scale(0.9); transition: transform 0.2s;
+  max-height: 80vh; display: flex; flex-direction: column;
+}
+.modal-mask.show .modal { transform: scale(1); }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; border-bottom: 1px solid var(--border-light);
+}
+.modal-header h3 { font-size: 16px; font-weight: 500; }
+.modal-close {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border-radius: 50%; transition: background 0.2s;
+  font-size: 16px; color: var(--text-tertiary);
+}
+.modal-close:hover { background: var(--bg-layout); color: var(--text-primary); }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px; padding: 12px 24px; border-top: 1px solid var(--border-light);
+}
+
+/* ===== Message ===== */
+.message-container {
+  position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  pointer-events: none;
+}
+.message {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 16px; border-radius: var(--radius);
+  background: #fff; box-shadow: 0 3px 6px -4px rgba(0,0,0,0.12), 0 6px 16px 0 rgba(0,0,0,0.08);
+  font-size: 14px; pointer-events: auto;
+  animation: messageIn 0.3s ease;
+}
+.message.hiding { animation: messageOut 0.3s ease forwards; }
+.message i { font-size: 16px; }
+.message.success i { color: var(--success); }
+.message.error i { color: var(--error); }
+.message.warning i { color: var(--warning); }
+.message.info i { color: var(--info); }
+@keyframes messageIn { from { opacity:0; transform: translateY(-12px); } to { opacity:1; transform: translateY(0); } }
+@keyframes messageOut { from { opacity:1; transform: translateY(0); } to { opacity:0; transform: translateY(-12px); } }
+
+/* ===== Form ===== */
+.form-item { margin-bottom: 24px; }
+.form-item-label {
+  display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-primary);
+}
+.form-item-label .required { color: var(--error); margin-right: 4px; }
+.form-item-label .extra { color: var(--text-tertiary); font-size: 12px; margin-left: 8px; }
+.form-item-help { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
+.form-item-error { font-size: 12px; color: var(--error); margin-top: 4px; }
+
+input[type="text"], input[type="number"], input[type="datetime-local"], select, textarea {
+  width: 100%; height: 32px; padding: 4px 11px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 14px; color: var(--text-primary); outline: none;
+  transition: border-color 0.2s; font-family: var(--font-family);
+  background: #fff;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(24,144,255,0.2); }
+input.error, select.error { border-color: var(--error); }
+input.error:focus, select.error:focus { box-shadow: 0 0 0 2px rgba(245,34,45,0.2); }
+input[disabled], select[disabled] { background: #f5f5f5; color: var(--text-tertiary); cursor: not-allowed; }
+textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; }
+
+.input-group { display: flex; gap: 8px; }
+.input-group input, .input-group select { flex: 1; }
+
+.char-count { text-align: right; font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
+.char-count.over { color: var(--error); }
+
+/* ===== Radio Group ===== */
+.radio-group { display: flex; gap: 0; }
+.radio-btn {
+  height: 32px; padding: 0 15px; border: 1px solid var(--border);
+  background: #fff; cursor: pointer; font-size: 14px; color: var(--text-primary);
+  transition: all 0.2s; display: inline-flex; align-items: center;
+  user-select: none;
+}
+.radio-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.radio-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.radio-btn + .radio-btn { margin-left: -1px; }
+.radio-btn.active {
+  background: var(--primary); border-color: var(--primary); color: #fff; z-index: 1;
+}
+.radio-btn:not(.active):hover { color: var(--primary); border-color: var(--primary); }
+
+/* ===== Skeleton ===== */
+.skeleton-row {
+  display: flex; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--border-light);
+}
+.skeleton-cell {
+  height: 16px; background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%; animation: skeleton-loading 1.5s infinite;
+  border-radius: var(--radius);
+}
+@keyframes skeleton-loading { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ===== Empty ===== */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 0; color: var(--text-tertiary);
+}
+.empty-state i { font-size: 64px; margin-bottom: 16px; color: var(--border-light); }
+.empty-state p { font-size: 14px; }
+
+/* ===== Tooltip ===== */
+.tooltip-wrapper { position: relative; display: inline-block; }
+.tooltip-content {
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); padding: 6px 8px;
+  background: rgba(0,0,0,0.75); color: #fff; font-size: 12px;
+  border-radius: var(--radius); white-space: nowrap;
+  opacity: 0; visibility: hidden; transition: all 0.2s; z-index: 500;
+  pointer-events: none;
+}
+.tooltip-wrapper:hover .tooltip-content { opacity: 1; visibility: visible; }
+
+/* ===== Section Title ===== */
+.section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 500; margin-bottom: 20px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border-light);
+}
+.section-title i { color: var(--primary); font-size: 18px; }
+
+/* ===== Strategy Form ===== */
+.strategy-form-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: var(--shadow-card); padding: 24px 32px; margin-bottom: 16px;
+}
+.trigger-config { margin-top: 16px; padding: 16px; background: #fafafa; border-radius: var(--radius); }
+.branch-card {
+  border: 1px solid var(--border-light); border-radius: var(--radius);
+  padding: 16px; margin-top: 12px; position: relative;
+  border-left: 3px solid var(--primary);
+}
+.branch-card .branch-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+}
+.branch-card .branch-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 8px; height: 22px; background: #e6f7ff;
+  border-radius: var(--radius); font-size: 12px; color: var(--primary);
+}
+.msg-preview-bubble {
+  background: #f0f0f0; padding: 12px 16px; border-radius: 0 12px 12px 12px;
+  max-width: 320px; font-size: 14px; line-height: 1.6; margin-top: 12px;
+  position: relative; color: var(--text-primary);
+}
+.msg-preview-bubble::before {
+  content: ''; position: absolute; top: 0; left: -8px;
+  border-width: 0 8px 8px 0; border-style: solid;
+  border-color: transparent #f0f0f0 transparent transparent;
+}
+
+/* ===== Template Editor ===== */
+.editor-container { display: flex; gap: 24px; }
+.editor-left { flex: 1; }
+.editor-right { width: 50%; min-width: 300px; }
+.editor-toolbar {
+  display: flex; align-items: center; gap: 4px; padding: 8px 12px;
+  border: 1px solid var(--border); border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0; background: #fafafa;
+}
+.editor-toolbar .toolbar-btn {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer; border-radius: var(--radius);
+  color: var(--text-secondary); font-size: 16px; transition: all 0.2s;
+}
+.editor-toolbar .toolbar-btn:hover { background: var(--bg-layout); color: var(--primary); }
+.editor-toolbar .toolbar-btn.active { background: #e6f7ff; color: var(--primary); }
+.editor-toolbar .separator { width: 1px; height: 20px; background: var(--border-light); margin: 0 4px; }
+.editor-toolbar .insert-var-btn {
+  height: 28px; padding: 0 10px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: #fff; cursor: pointer;
+  font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;
+  transition: all 0.2s;
+}
+.editor-toolbar .insert-var-btn:hover { border-color: var(--primary); color: var(--primary); }
+.editor-area {
+  min-height: 300px; padding: 12px 16px;
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  outline: none; font-size: 14px; line-height: 1.8;
+  color: var(--text-primary); overflow-y: auto;
+}
+.editor-area:focus { border-color: var(--primary); }
+.editor-area:empty::before {
+  content: attr(data-placeholder); color: var(--text-tertiary);
+}
+.editor-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 8px; font-size: 12px; color: var(--text-tertiary);
+}
+.var-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px; background: #e6f7ff; border: 1px solid #91d5ff;
+  border-radius: var(--radius); color: var(--primary); font-size: 13px;
+  cursor: default; user-select: none; vertical-align: baseline;
+}
+.var-tag .remove-var {
+  cursor: pointer; font-size: 12px; color: var(--primary);
+  margin-left: 2px; opacity: 0.6; transition: opacity 0.2s;
+}
+.var-tag .remove-var:hover { opacity: 1; }
+.var-panel {
+  position: absolute; top: 100%; right: 0; z-index: 100;
+  width: 320px; background: #fff; border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal); border: 1px solid var(--border-light);
+  padding: 16px; display: none;
+}
+.var-panel.show { display: block; }
+.var-panel h4 { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+.var-panel .var-list { display: flex; flex-direction: column; gap: 8px; }
+.var-panel .var-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border: 1px solid var(--border-light);
+  border-radius: var(--radius); cursor: pointer; transition: all 0.2s;
+}
+.var-panel .var-item:hover { border-color: var(--primary); background: #e6f7ff; }
+.var-panel .var-item .var-name { font-size: 13px; color: var(--text-primary); }
+.var-panel .var-item .var-key { font-size: 12px; color: var(--text-tertiary); }
+.preview-area {
+  background: #fafafa; border-radius: var(--radius);
+  padding: 16px; min-height: 300px; border: 1px solid var(--border-light);
+}
+.preview-area h4 { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+.preview-bubble {
+  background: #fff; padding: 12px 16px; border-radius: 0 12px 12px 12px;
+  max-width: 100%; font-size: 14px; line-height: 1.8; position: relative;
+  border: 1px solid var(--border-light);
+}
+.preview-bubble::before {
+  content: ''; position: absolute; top: 0; left: -8px;
+  border-width: 0 8px 8px 0; border-style: solid;
+  border-color: transparent #fff transparent transparent;
+}
+.preview-var {
+  display: inline-block; padding: 0 6px; background: #fff7e6;
+  border: 1px dashed var(--warning); border-radius: var(--radius);
+  color: var(--warning); font-size: 13px;
+}
+.preview-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 200px; color: var(--text-tertiary); font-size: 14px;
+}
+
+/* ===== Footer Actions ===== */
+.footer-actions {
+  position: sticky; bottom: 0; background: var(--bg-card);
+  border-top: 1px solid var(--border-light);
+  padding: 16px 32px; display: flex; justify-content: flex-end; gap: 8px;
+  margin: 0 -32px -24px; border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* ===== Modal Confirm ===== */
+.confirm-icon { font-size: 22px; color: var(--warning); margin-bottom: 16px; }
+.confirm-body { font-size: 14px; color: var(--text-primary); line-height: 1.6; }
+.confirm-body .highlight { color: var(--error); font-weight: 500; }
+
+/* ===== Template Preview Modal ===== */
+.template-preview-content { font-size: 14px; line-height: 1.8; }
+.template-preview-content .var-list-preview {
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light);
+}
+.template-preview-content .var-list-preview h4 { font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+.template-preview-content .var-item-preview {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; background: #e6f7ff; border: 1px solid #91d5ff;
+  border-radius: var(--radius); color: var(--primary); font-size: 12px;
+  margin: 0 4px 4px 0;
+}
+
+/* ===== Misc ===== */
+.flex-center { display: flex; align-items: center; gap: 8px; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mb-16 { margin-bottom: 16px; }
+.text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- Layout -->
+<div class="layout">
+  <!-- Header -->
+  <div class="layout-header">
+    <div class="logo">
+      <i class="ri-customer-service-2-line"></i>
+      <span>客户回访系统</span>
+    </div>
+  </div>
+
+  <!-- Sider -->
+  <div class="layout-sider" id="sider">
+    <ul class="menu">
+      <li class="menu-submenu-title open" onclick="toggleSubmenu(this)">
+        <i class="ri-customer-service-2-line menu-icon"></i>
+        <span>客户回访</span>
+        <i class="ri-arrow-down-s-line arrow"></i>
+      </li>
+      <ul class="menu-sub open" id="submenu">
+        <li class="menu-item" data-route="#/segment/list" onclick="navigate('#/segment/list')">
+          <i class="ri-group-line"></i><span>加微分群</span>
+        </li>
+        <li class="menu-item" data-route="#/strategy/list" onclick="navigate('#/strategy/list')">
+          <i class="ri-robot-2-line"></i><span>策略</span>
+        </li>
+        <li class="menu-item" data-route="#/template/list" onclick="navigate('#/template/list')">
+          <i class="ri-file-text-line"></i><span>消息模板</span>
+        </li>
+        <li class="menu-item" data-route="#/broadcast/list" onclick="navigate('#/broadcast/list')">
+          <i class="ri-send-plane-2-line"></i><span>群发</span>
+        </li>
+      </ul>
+    </ul>
+  </div>
+
+  <!-- Content -->
+  <div class="layout-content" id="content">
+    <div class="content-wrapper" id="page-content"></div>
+  </div>
+</div>
+
+<!-- Modal Container -->
+<div class="modal-mask" id="modal-mask">
+  <div class="modal" id="modal-box"></div>
+</div>
+
+<!-- Message Container -->
+<div class="message-container" id="message-container"></div>
+
+<script>
+// ===== Data Store =====
+const store = {
+  segments: [
+    {id:1,name:"高意向未转化客户",description:"筛选加微后2-3天内未转化且未创建订单的客户",ruleCount:3,creator:"张三",createTime:"2026-04-20 14:30",updateFrequency:"每天"},
+    {id:2,name:"新注册7天内未消费",description:"注册后7天内没有任何消费记录的新客户",ruleCount:2,creator:"李四",createTime:"2026-04-19 10:15",updateFrequency:"每周"},
+    {id:3,name:"沉睡客户唤醒",description:"超过30天未活跃的客户群体",ruleCount:4,creator:"王五",createTime:"2026-04-18 09:00",updateFrequency:"每月"},
+    {id:4,name:"高消费VIP客户",description:"累计消费超过10000元的VIP客户",ruleCount:5,creator:"张三",createTime:"2026-04-17 16:45",updateFrequency:"每天"},
+    {id:5,name:"近期退款客户",description:"近30天内有过退款记录的客户",ruleCount:2,creator:"赵六",createTime:"2026-04-16 11:20",updateFrequency:"手动"},
+    {id:6,name:"高频咨询客户",description:"近7天内咨询超过5次的客户",ruleCount:3,creator:"张三",createTime:"2026-04-15 08:30",updateFrequency:"每天"},
+    {id:7,name:"流失预警客户",description:"加微后7天内未回复消息的客户",ruleCount:2,creator:"李四",createTime:"2026-04-14 17:00",updateFrequency:"每天"}
+  ],
+  strategies: [
+    {id:1,name:"新客户跟进策略",triggerType:"定时触发",triggerDetail:"每天 10:00",triggerFrequency:"每天",triggerTime:"10:00",segmentNames:["高意向未转化客户"],action:"创建群发",templateId:1,status:"enabled",createdAt:"2026-04-21 10:30",sendType:"立即发送"},
+    {id:2,name:"加微欢迎策略",triggerType:"事件触发",triggerDetail:"加微成功时",triggerEvent:"add_wechat",segmentNames:["新注册7天内未消费","高意向未转化客户"],action:"创建群发",templateId:2,status:"enabled",createdAt:"2026-04-20 15:00",sendType:"立即发送"},
+    {id:3,name:"沉睡客户唤醒策略",triggerType:"定时触发",triggerDetail:"每周一 09:00",triggerFrequency:"每周",triggerTime:"周一 09:00",segmentNames:["沉睡客户唤醒"],action:"创建群发",templateId:5,status:"disabled",createdAt:"2026-04-19 14:20",sendType:"定时发送",sendTime:"2026-04-22T09:00"},
+    {id:4,name:"排客提醒策略",triggerType:"事件触发",triggerDetail:"距排客时间前 1 小时",triggerEvent:"before_schedule",segmentNames:["高消费VIP客户"],action:"创建群发",templateId:4,status:"enabled",createdAt:"2026-04-18 08:45",sendType:"立即发送"},
+    {id:5,name:"月度回访策略",triggerType:"定时触发",triggerDetail:"每月 1日 08:00",triggerFrequency:"每月",triggerTime:"1日 08:00",segmentNames:["高意向未转化客户","沉睡客户唤醒","近期退款客户"],action:"创建群发",templateId:1,status:"disabled",createdAt:"2026-04-17 16:30",sendType:"定时发送",sendTime:"2026-05-01T08:00"}
+  ],
+  templates: [
+    {id:1,name:"术后回访模板",content:"尊敬的{{客户姓名}}，您好！感谢您选择{{门店名称}}进行{{咨询项目}}，您的排客日期为{{排客日期}}，请注意术后注意事项。",variableCount:4,createdAt:"2026-04-21 14:30",updatedAt:"2026-04-21 14:30"},
+    {id:2,name:"新客户欢迎语",content:"您好{{客户姓名}}，欢迎关注{{门店名称}}！如有任何问题，欢迎随时咨询。",variableCount:2,createdAt:"2026-04-20 10:00",updatedAt:"2026-04-20 10:00"},
+    {id:3,name:"促销活动通知",content:"尊敬的{{客户姓名}}，{{门店名称}}现推出{{咨询项目}}限时优惠活动，原价{{订单金额}}元，现仅需8折！",variableCount:4,createdAt:"2026-04-19 16:00",updatedAt:"2026-04-19 16:00"},
+    {id:4,name:"排客提醒",content:"{{客户姓名}}您好，您在{{门店名称}}的{{咨询项目}}排客日期为{{排客日期}}，请提前安排好时间。",variableCount:4,createdAt:"2026-04-18 09:30",updatedAt:"2026-04-18 09:30"},
+    {id:5,name:"节日祝福",content:"尊敬的{{客户姓名}}，{{门店名称}}全体员工祝您节日快乐！感谢您的信任与支持。",variableCount:2,createdAt:"2026-04-17 11:00",updatedAt:"2026-04-17 11:00"}
+  ],
+  nextSegmentId: 8,
+  nextStrategyId: 6,
+  nextTemplateId: 6
+};
+
+const VARIABLES = [
+  {name:'客户姓名', key:'{{客户姓名}}', example:'张女士'},
+  {name:'微信号', key:'{{微信号}}', example:'wx_zhangsan'},
+  {name:'咨询项目', key:'{{咨询项目}}', example:'皮肤管理'},
+  {name:'排客日期', key:'{{排客日期}}', example:'2026-04-25'},
+  {name:'订单金额', key:'{{订单金额}}', example:'580元'},
+  {name:'门店名称', key:'{{门店名称}}', example:'美丽时光美容院'}
+];
+
+const SEGMENT_CUSTOMER_COUNTS = {
+  "高意向未转化客户": 1256,
+  "新注册7天内未消费": 892,
+  "沉睡客户唤醒": 3451,
+  "高消费VIP客户": 386,
+  "近期退款客户": 214,
+  "高频咨询客户": 567,
+  "流失预警客户": 1023
+};
+
+// ===== Message System =====
+function showMessage(type, text) {
+  const container = document.getElementById('message-container');
+  const icons = {success:'ri-checkbox-circle-line', error:'ri-close-circle-line', warning:'ri-error-warning-line', info:'ri-information-line'};
+  const el = document.createElement('div');
+  el.className = `message ${type}`;
+  el.innerHTML = `<i class="${icons[type]}"></i><span>${text}</span>`;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('hiding'); }, 2500);
+  setTimeout(() => { el.remove(); }, 3000);
+}
+
+// ===== Modal System =====
+function showModal(config) {
+  const mask = document.getElementById('modal-mask');
+  const box = document.getElementById('modal-box');
+  const width = config.width || 520;
+  box.style.width = width + 'px';
+  let html = '';
+  if (config.title !== false) {
+    html += `<div class="modal-header"><h3>${config.title || ''}</h3>`;
+    if (config.closable !== false) html += `<div class="modal-close" onclick="closeModal()"><i class="ri-close-line"></i></div>`;
+    html += `</div>`;
+  }
+  html += `<div class="modal-body">${config.content || ''}</div>`;
+  if (config.footer !== false) {
+    html += `<div class="modal-footer">`;
+    if (config.footer) {
+      html += config.footer;
+    } else {
+      html += `<button class="btn" onclick="closeModal()">取消</button>`;
+      html += `<button class="btn btn-primary" onclick="closeModal()">确定</button>`;
+    }
+    html += `</div>`;
+  }
+  box.innerHTML = html;
+  mask.classList.add('show');
+  mask._onClose = config.onClose || null;
+}
+function closeModal() {
+  const mask = document.getElementById('modal-mask');
+  mask.classList.remove('show');
+  if (mask._onClose) mask._onClose();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal-mask').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// ===== Routing =====
+let currentRoute = '';
+function navigate(hash) {
+  window.location.hash = hash;
+}
+function getRoute() {
+  const hash = window.location.hash || '#/segment/list';
+  return hash;
+}
+
+function updateMenu(hash) {
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.classList.remove('active');
+    const route = item.dataset.route;
+    if (route && hash.startsWith(route.split('/').slice(0,3).join('/'))) {
+      item.classList.add('active');
+    }
+  });
+}
+
+function toggleSubmenu(el) {
+  el.classList.toggle('open');
+  document.getElementById('submenu').classList.toggle('open');
+}
+
+function router() {
+  const hash = getRoute();
+  if (hash === currentRoute) return;
+  currentRoute = hash;
+  updateMenu(hash);
+  const content = document.getElementById('page-content');
+
+  // Show skeleton
+  content.innerHTML = renderSkeleton();
+
+  setTimeout(() => {
+    if (hash === '#/segment/list') renderSegmentList(content);
+    else if (hash === '#/strategy/list') renderStrategyList(content);
+    else if (hash === '#/strategy/create') renderStrategyForm(content, null);
+    else if (hash.startsWith('#/strategy/edit/')) {
+      const id = parseInt(hash.split('/').pop());
+      const s = store.strategies.find(x => x.id === id);
+      renderStrategyForm(content, s || null);
+    }
+    else if (hash === '#/template/list') renderTemplateList(content);
+    else if (hash === '#/template/add') renderTemplateForm(content, null);
+    else if (hash.startsWith('#/template/edit/')) {
+      const id = parseInt(hash.split('/').pop());
+      const t = store.templates.find(x => x.id === id);
+      renderTemplateForm(content, t || null);
+    }
+    else if (hash === '#/broadcast/list') renderBroadcastPlaceholder(content);
+    else renderSegmentList(content);
+  }, 400);
+}
+
+window.addEventListener('hashchange', router);
+window.addEventListener('load', () => {
+  if (!window.location.hash) window.location.hash = '#/segment/list';
+  router();
+});
+
+// ===== Skeleton =====
+function renderSkeleton() {
+  let rows = '';
+  for (let i = 0; i < 6; i++) {
+    const widths = ['120px','200px','80px','60px','100px','80px','100px'];
+    rows += `<div class="skeleton-row">${widths.map(w => `<div class="skeleton-cell" style="width:${w};flex:${i===0?0:1}"></div>`).join('')}</div>`;
+  }
+  return `<div class="breadcrumb"><span class="sep"></span></div>
+    <div class="page-header"><div class="skeleton-cell" style="width:100px;height:24px"></div></div>
+    <div class="card"><table><thead><tr><th>&nbsp;</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ===== Segment List =====
+function renderSegmentList(container) {
+  const data = store.segments;
+  let tableRows = data.map(s => `
+    <tr>
+      <td><span class="link" onclick="showMessage('info','查看分群详情：${s.name}')">${s.name}</span></td>
+      <td><span class="text-ellipsis" title="${s.description}">${s.description}</span></td>
+      <td>${s.ruleCount}个条件</td>
+      <td>${s.creator}</td>
+      <td>${s.createTime}</td>
+      <td><span class="tag ${s.updateFrequency==='每天'?'tag-blue':s.updateFrequency==='每周'?'tag-green':s.updateFrequency==='每月'?'tag-orange':'tag-red'}">${s.updateFrequency}</span></td>
+      <td>
+        <div class="actions">
+          <a class="btn-link" onclick="showMessage('info','编辑分群：${s.name}')">编辑</a>
+          <a class="btn-link danger" onclick="confirmDeleteSegment(${s.id},'${s.name}')">删除</a>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/segment/list">客户回访</a>
+      <span class="sep">/</span>
+      <span class="current">加微分群</span>
+    </div>
+    <div class="page-header">
+      <h2>加微分群</h2>
+      <button class="btn btn-primary" onclick="showMessage('info','新增分群功能')"><i class="ri-add-line"></i> 新增分群</button>
+    </div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>分群名称</th><th>描述</th><th>规则</th><th>创建人</th><th>创建时间</th><th>更新频次</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="total">共 ${data.length} 条</span>
+        <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
+        <span class="page-btn active">1</span>
+        <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
+      </div>
+    </div>`;
+}
+
+function confirmDeleteSegment(id, name) {
+  showModal({
+    width: 420,
+    title: '确认删除',
+    content: `
+      <div class="confirm-icon"><i class="ri-error-warning-line"></i></div>
+      <div class="confirm-body">确定删除分群 <span class="highlight">"${name}"</span> 吗？删除后不可恢复。</div>`,
+    footer: `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-danger" onclick="deleteSegment(${id})">确定删除</button>`
+  });
+}
+function deleteSegment(id) {
+  store.segments = store.segments.filter(s => s.id !== id);
+  closeModal();
+  showMessage('success', '删除成功');
+  renderSegmentList(document.getElementById('page-content'));
+}
+
+// ===== Strategy List =====
+function renderStrategyList(container) {
+  const data = store.strategies;
+  let tableRows = data.map(s => `
+    <tr>
+      <td><span class="link" title="${s.name}">${s.name}</span></td>
+      <td><span class="tag ${s.triggerType==='定时触发'?'tag-blue':'tag-green'}">${s.triggerType}</span></td>
+      <td>${s.triggerDetail}</td>
+      <td>${s.segmentNames.map(n => `<span class="tag tag-blue" style="margin:2px 4px 2px 0">${n}</span>`).join('')}</td>
+      <td>${s.action}</td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" ${s.status==='enabled'?'checked':''} onchange="toggleStrategyStatus(${s.id}, this.checked)">
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>${s.createdAt}</td>
+      <td>
+        <div class="actions">
+          <a class="btn-link" onclick="navigate('#/strategy/edit/${s.id}')">编辑</a>
+          <a class="btn-link danger" onclick="confirmDeleteStrategy(${s.id},'${s.name}')">删除</a>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/strategy/list">客户回访</a>
+      <span class="sep">/</span>
+      <span class="current">策略</span>
+    </div>
+    <div class="page-header">
+      <h2>策略</h2>
+      <button class="btn btn-primary" onclick="navigate('#/strategy/create')"><i class="ri-add-line"></i> 新增策略</button>
+    </div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>策略名称</th><th>触发条件</th><th>触发详情</th><th>筛选分群</th><th>执行动作</th><th>状态</th><th>创建时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="total">共 ${data.length} 条</span>
+        <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
+        <span class="page-btn active">1</span>
+        <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
+      </div>
+    </div>`;
+}
+
+function toggleStrategyStatus(id, checked) {
+  const s = store.strategies.find(x => x.id === id);
+  if (s) {
+    s.status = checked ? 'enabled' : 'disabled';
+    showMessage('success', checked ? '策略已启用' : '策略已停用');
+  }
+}
+
+function confirmDeleteStrategy(id, name) {
+  showModal({
+    width: 416,
+    title: '确认删除',
+    content: `
+      <div class="confirm-icon"><i class="ri-error-warning-line"></i></div>
+      <div class="confirm-body">确定删除策略 <span class="highlight">"${name}"</span> 吗？删除后不可恢复。</div>`,
+    footer: `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-danger" onclick="deleteStrategy(${id})">确定删除</button>`
+  });
+}
+function deleteStrategy(id) {
+  store.strategies = store.strategies.filter(s => s.id !== id);
+  closeModal();
+  showMessage('success', '删除成功');
+  renderStrategyList(document.getElementById('page-content'));
+}
+
+// ===== Strategy Form =====
+let strategyBranches = [];
+let strategyFormState = {};
+
+function renderStrategyForm(container, data) {
+  const isEdit = !!data;
+  strategyFormState = {};
+  strategyBranches = data && data.branches ? [...data.branches] : [];
+
+  const segmentOptions = store.segments.map(s =>
+    `<option value="${s.name}" ${data && data.segmentNames && data.segmentNames.includes(s.name) ? 'selected' : ''}>${s.name}（${SEGMENT_CUSTOMER_COUNTS[s.name]||0}人）</option>`
+  ).join('');
+
+  const templateOptions = store.templates.map(t =>
+    `<option value="${t.id}" ${data && data.templateId === t.id ? 'selected' : ''}>${t.name}</option>`
+  ).join('');
+
+  const triggerType = data ? data.triggerType : '定时触发';
+  const triggerFrequency = data ? (data.triggerFrequency || '每天') : '每天';
+  const triggerTime = data ? (data.triggerTime || '10:00') : '10:00';
+  const triggerEvent = data ? (data.triggerEvent || 'add_wechat') : 'add_wechat';
+  const sendType = data ? (data.sendType || '立即发送') : '立即发送';
+  const sendTime = data ? (data.sendTime || '') : '';
+  const selectedSegments = data ? data.segmentNames : [];
+  const estimatedCount = selectedSegments.reduce((sum, n) => sum + (SEGMENT_CUSTOMER_COUNTS[n]||0), 0);
+
+  let branchesHtml = '';
+  if (strategyBranches.length > 0) {
+    strategyBranches.forEach((b, i) => {
+      branchesHtml += renderBranchCard(b, i);
+    });
+  }
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/strategy/list">客户回访</a>
+      <span class="sep">/</span>
+      <a href="#/strategy/list">策略</a>
+      <span class="sep">/</span>
+      <span class="current">${isEdit ? '编辑策略' : '新增策略'}</span>
+    </div>
+    <div class="page-header"><h2>${isEdit ? '编辑策略' : '新增策略'}</h2></div>
+
+    <!-- 基本信息 -->
+    <div class="strategy-form-card">
+      <div class="section-title"><i class="ri-information-line"></i> 基本信息</div>
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 策略名称</label>
+        <input type="text" id="strategy-name" value="${data ? data.name : ''}" maxlength="50" placeholder="请输入策略名称" oninput="updateStrategyCharCount()" onblur="validateStrategyName()">
+        <div class="char-count" id="strategy-name-count">${data ? data.name.length : 0}/50</div>
+        <div class="form-item-error hidden" id="strategy-name-error"></div>
+      </div>
+    </div>
+
+    <!-- 触发条件 -->
+    <div class="strategy-form-card">
+      <div class="section-title"><i class="ri-timer-flash-line"></i> 触发条件</div>
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 触发方式</label>
+        <div class="radio-group" id="trigger-type-group">
+          <div class="radio-btn ${triggerType==='定时触发'?'active':''}" onclick="switchTriggerType('定时触发')">定时触发</div>
+          <div class="radio-btn ${triggerType==='事件触发'?'active':''}" onclick="switchTriggerType('事件触发')">事件触发</div>
+        </div>
+      </div>
+      <div id="trigger-config-area">
+        ${triggerType === '定时触发' ? renderTimerConfig(triggerFrequency, triggerTime) : renderEventConfig(triggerEvent)}
+      </div>
+    </div>
+
+    <!-- 筛选条件 -->
+    <div class="strategy-form-card">
+      <div class="section-title"><i class="ri-filter-3-line"></i> 筛选条件</div>
+      <div class="form-item">
+        <label class="form-item-label">选择加微记录分群</label>
+        <select id="strategy-segments" multiple style="height:auto;min-height:80px" onchange="updateSegmentEstimate()">
+          ${segmentOptions}
+        </select>
+        <div class="form-item-help" id="segment-estimate">已选分群预计匹配约 <strong>${estimatedCount}</strong> 位客户</div>
+      </div>
+    </div>
+
+    <!-- 条件分支 -->
+    <div class="strategy-form-card">
+      <div class="section-title"><i class="ri-git-branch-line"></i> 条件分支 <span style="font-weight:400;font-size:12px;color:var(--text-tertiary)">（可选）</span></div>
+      <div id="branch-list">${branchesHtml}</div>
+      <button class="btn btn-dashed" style="width:100%;margin-top:12px" onclick="addBranch()">
+        <i class="ri-add-line"></i> 添加条件分支
+      </button>
+    </div>
+
+    <!-- 执行动作 -->
+    <div class="strategy-form-card">
+      <div class="section-title"><i class="ri-send-plane-line"></i> 执行动作</div>
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 动作类型</label>
+        <div class="radio-group">
+          <div class="radio-btn active">创建群发</div>
+        </div>
+      </div>
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 消息模板</label>
+        <select id="strategy-template" onchange="updateMsgPreview()">
+          <option value="">请选择消息模板</option>
+          ${templateOptions}
+        </select>
+        <div id="msg-preview-area" class="${data && data.templateId ? '' : 'hidden'}">
+          ${data && data.templateId ? renderMsgPreviewBubble(data.templateId) : ''}
+        </div>
+      </div>
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 发送方式</label>
+        <div class="radio-group" id="send-type-group">
+          <div class="radio-btn ${sendType==='立即发送'?'active':''}" onclick="switchSendType('立即发送')">立即发送</div>
+          <div class="radio-btn ${sendType==='定时发送'?'active':''}" onclick="switchSendType('定时发送')">定时发送</div>
+        </div>
+      </div>
+      <div id="send-time-area" class="${sendType==='定时发送'?'':'hidden'}">
+        <div class="form-item">
+          <label class="form-item-label">发送时间</label>
+          <input type="datetime-local" id="strategy-send-time" value="${sendTime}">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="strategy-form-card" style="padding:0">
+      <div class="footer-actions">
+        <button class="btn" onclick="navigate('#/strategy/list')">取消</button>
+        <button class="btn btn-primary" onclick="saveStrategy(${isEdit ? data.id : 'null'})">保存</button>
+      </div>
+    </div>`;
+
+  // Init template preview
+  if (data && data.templateId) {
+    setTimeout(() => updateMsgPreview(), 0);
+  }
+}
+
+function renderTimerConfig(freq, time) {
+  return `
+    <div class="trigger-config">
+      <div class="form-item" style="margin-bottom:12px">
+        <label class="form-item-label">触发频率</label>
+        <div class="radio-group" id="trigger-freq-group">
+          <div class="radio-btn ${freq==='每天'?'active':''}" onclick="switchTriggerFreq('每天')">每天</div>
+          <div class="radio-btn ${freq==='每周'?'active':''}" onclick="switchTriggerFreq('每周')">每周</div>
+          <div class="radio-btn ${freq==='每月'?'active':''}" onclick="switchTriggerFreq('每月')">每月</div>
+          <div class="radio-btn ${freq==='自定义cron'?'active':''}" onclick="switchTriggerFreq('自定义cron')">自定义cron</div>
+        </div>
+      </div>
+      <div id="trigger-time-area">
+        ${freq === '每天' ? `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">时间</label><input type="time" id="trigger-time" value="${time}"></div>` :
+          freq === '每周' ? `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">时间</label><div class="input-group"><select id="trigger-weekday"><option ${time.startsWith('周一')?'selected':''}>周一</option><option ${time.startsWith('周二')?'selected':''}>周二</option><option ${time.startsWith('周三')?'selected':''}>周三</option><option ${time.startsWith('周四')?'selected':''}>周四</option><option ${time.startsWith('周五')?'selected':''}>周五</option><option ${time.startsWith('周六')?'selected':''}>周六</option><option ${time.startsWith('周日')?'selected':''}>周日</option></select><input type="time" id="trigger-time" value="${time.split(' ')[1]||'09:00'}"></div></div>` :
+          freq === '每月' ? `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">时间</label><div class="input-group"><select id="trigger-monthday">${Array.from({length:28},(_,i)=>`<option value="${i+1}" ${time.startsWith(i+1+'日')?'selected':''}>${i+1}日</option>`).join('')}</select><input type="time" id="trigger-time" value="${time.split(' ')[1]||'08:00'}"></div></div>` :
+          `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">Cron表达式</label><input type="text" id="trigger-cron" value="0 0 10 * * ?" placeholder="请输入Cron表达式"></div>`
+        }
+      </div>
+    </div>`;
+}
+
+function renderEventConfig(event) {
+  return `
+    <div class="trigger-config">
+      <div class="form-item" style="margin-bottom:0">
+        <label class="form-item-label">选择事件</label>
+        <select id="trigger-event">
+          <option value="add_wechat" ${event==='add_wechat'?'selected':''}>加微成功</option>
+          <option value="before_schedule" ${event==='before_schedule'?'selected':''}>到排客时间前1h</option>
+        </select>
+        <div class="form-item-help">选择触发策略执行的事件类型</div>
+      </div>
+    </div>`;
+}
+
+function switchTriggerType(type) {
+  const group = document.getElementById('trigger-type-group');
+  group.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+  group.querySelector(`.radio-btn:nth-child(${type==='定时触发'?1:2})`).classList.add('active');
+  const area = document.getElementById('trigger-config-area');
+  if (type === '定时触发') {
+    area.innerHTML = renderTimerConfig('每天', '10:00');
+  } else {
+    area.innerHTML = renderEventConfig('add_wechat');
+  }
+}
+
+function switchTriggerFreq(freq) {
+  const group = document.getElementById('trigger-freq-group');
+  group.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+  const idx = ['每天','每周','每月','自定义cron'].indexOf(freq);
+  group.querySelectorAll('.radio-btn')[idx].classList.add('active');
+  const area = document.getElementById('trigger-time-area');
+  if (freq === '每天') area.innerHTML = `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">时间</label><input type="time" id="trigger-time" value="10:00"></div>`;
+  else if (freq === '每周') area.innerHTML = `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">时间</label><div class="input-group"><select id="trigger-weekday"><option>周一</option><option>周二</option><option>周三</option><option>周四</option><option>周五</option><option>周六</option><option>周日</option></select><input type="time" id="trigger-time" value="09:00"></div></div>`;
+  else if (freq === '每月') area.innerHTML = `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">时间</label><div class="input-group"><select id="trigger-monthday">${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}日</option>`).join('')}</select><input type="time" id="trigger-time" value="08:00"></div></div>`;
+  else area.innerHTML = `<div class="form-item" style="margin-bottom:0"><label class="form-item-label">Cron表达式</label><input type="text" id="trigger-cron" value="0 0 10 * * ?" placeholder="请输入Cron表达式"></div>`;
+}
+
+function switchSendType(type) {
+  const group = document.getElementById('send-type-group');
+  group.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+  group.querySelector(`.radio-btn:nth-child(${type==='立即发送'?1:2})`).classList.add('active');
+  const area = document.getElementById('send-time-area');
+  area.classList.toggle('hidden', type !== '定时发送');
+}
+
+function updateSegmentEstimate() {
+  const select = document.getElementById('strategy-segments');
+  const selected = Array.from(select.selectedOptions).map(o => o.value);
+  const count = selected.reduce((sum, n) => sum + (SEGMENT_CUSTOMER_COUNTS[n]||0), 0);
+  document.getElementById('segment-estimate').innerHTML = `已选分群预计匹配约 <strong>${count}</strong> 位客户`;
+}
+
+function updateStrategyCharCount() {
+  const input = document.getElementById('strategy-name');
+  const count = document.getElementById('strategy-name-count');
+  count.textContent = `${input.value.length}/50`;
+  count.classList.toggle('over', input.value.length >= 50);
+}
+
+function validateStrategyName() {
+  const input = document.getElementById('strategy-name');
+  const error = document.getElementById('strategy-name-error');
+  if (!input.value.trim()) {
+    input.classList.add('error');
+    error.textContent = '请输入策略名称';
+    error.classList.remove('hidden');
+    return false;
+  }
+  input.classList.remove('error');
+  error.classList.add('hidden');
+  return true;
+}
+
+function renderMsgPreviewBubble(templateId) {
+  const t = store.templates.find(x => x.id == templateId);
+  if (!t) return '';
+  const content = t.content.replace(/\{\{([^}]+)\}\}/g, '<span class="var-tag">{{$1}}</span>');
+  return `<div class="msg-preview-bubble">${content}</div>`;
+}
+
+function updateMsgPreview() {
+  const templateId = document.getElementById('strategy-template').value;
+  const area = document.getElementById('msg-preview-area');
+  if (templateId) {
+    area.innerHTML = renderMsgPreviewBubble(templateId);
+    area.classList.remove('hidden');
+  } else {
+    area.innerHTML = '';
+    area.classList.add('hidden');
+  }
+}
+
+function addBranch() {
+  const colors = ['#1890ff','#52c41a','#fa8c16','#f5222d','#722ed1','#13c2c2'];
+  const idx = strategyBranches.length;
+  strategyBranches.push({condition: '', color: colors[idx % colors.length]});
+  const list = document.getElementById('branch-list');
+  list.insertAdjacentHTML('beforeend', renderBranchCard(strategyBranches[idx], idx));
+}
+
+function renderBranchCard(branch, index) {
+  return `
+    <div class="branch-card" style="border-left-color:${branch.color}" id="branch-${index}">
+      <div class="branch-header">
+        <span class="branch-label"><i class="ri-git-branch-line"></i> 分支 ${index + 1}</span>
+        <a class="btn-link danger btn-sm" onclick="removeBranch(${index})"><i class="ri-delete-bin-line"></i> 删除</a>
+      </div>
+      <div class="form-item" style="margin-bottom:0">
+        <label class="form-item-label">条件配置</label>
+        <input type="text" value="${branch.condition || ''}" placeholder="请输入分支条件" onchange="strategyBranches[${index}].condition=this.value">
+      </div>
+    </div>`;
+}
+
+function removeBranch(index) {
+  strategyBranches.splice(index, 1);
+  const list = document.getElementById('branch-list');
+  list.innerHTML = strategyBranches.map((b, i) => renderBranchCard(b, i)).join('');
+}
+
+function saveStrategy(editId) {
+  const nameValid = validateStrategyName();
+  if (!nameValid) return;
+  const name = document.getElementById('strategy-name').value.trim();
+  const templateId = parseInt(document.getElementById('strategy-template').value);
+  if (!templateId) { showMessage('error', '请选择消息模板'); return; }
+
+  const triggerTypeActive = document.querySelector('#trigger-type-group .radio-btn.active').textContent;
+  const sendTypeActive = document.querySelector('#send-type-group .radio-btn.active').textContent;
+  const segmentSelect = document.getElementById('strategy-segments');
+  const selectedSegments = Array.from(segmentSelect.selectedOptions).map(o => o.value);
+
+  let triggerDetail = '';
+  if (triggerTypeActive === '定时触发') {
+    const freqGroup = document.getElementById('trigger-freq-group');
+    const freqActive = freqGroup ? freqGroup.querySelector('.radio-btn.active').textContent : '每天';
+    const timeInput = document.getElementById('trigger-time');
+    const time = timeInput ? timeInput.value : '10:00';
+    if (freqActive === '每天') triggerDetail = `每天 ${time}`;
+    else if (freqActive === '每周') {
+      const wd = document.getElementById('trigger-weekday');
+      triggerDetail = `${wd.value} ${time}`;
+    } else if (freqActive === '每月') {
+      const md = document.getElementById('trigger-monthday');
+      triggerDetail = `每月 ${md.value}日 ${time}`;
+    } else {
+      const cron = document.getElementById('trigger-cron');
+      triggerDetail = cron ? cron.value : '自定义';
+    }
+  } else {
+    const evt = document.getElementById('trigger-event');
+    triggerDetail = evt.value === 'add_wechat' ? '加微成功时' : '距排客时间前 1 小时';
+  }
+
+  const sendTimeInput = document.getElementById('strategy-send-time');
+  const sendTime = sendTypeActive === '定时发送' && sendTimeInput ? sendTimeInput.value : '';
+
+  if (editId) {
+    const s = store.strategies.find(x => x.id === editId);
+    if (s) {
+      s.name = name;
+      s.triggerType = triggerTypeActive;
+      s.triggerDetail = triggerDetail;
+      s.segmentNames = selectedSegments;
+      s.templateId = templateId;
+      s.sendType = sendTypeActive;
+      s.sendTime = sendTime;
+    }
+    showMessage('success', '策略更新成功');
+  } else {
+    store.strategies.unshift({
+      id: store.nextStrategyId++,
+      name, triggerType: triggerTypeActive, triggerDetail,
+      segmentNames: selectedSegments, action: '创建群发',
+      templateId, status: 'enabled',
+      createdAt: new Date().toISOString().slice(0,16).replace('T',' '),
+      sendType: sendTypeActive, sendTime
+    });
+    showMessage('success', '策略创建成功');
+  }
+  navigate('#/strategy/list');
+}
+
+// ===== Template List =====
+function renderTemplateList(container) {
+  const data = store.templates;
+  let tableRows = data.map(t => `
+    <tr>
+      <td><span class="link" onclick="previewTemplate(${t.id})">${t.name}</span></td>
+      <td><span class="text-ellipsis" title="${t.content}">${t.content.substring(0,50)}${t.content.length>50?'...':''}</span></td>
+      <td>${t.variableCount}个</td>
+      <td>${t.createdAt}</td>
+      <td>${t.updatedAt}</td>
+      <td>
+        <div class="actions">
+          <a class="btn-link" onclick="navigate('#/template/edit/${t.id}')">编辑</a>
+          <a class="btn-link danger" onclick="confirmDeleteTemplate(${t.id},'${t.name}')">删除</a>
+          <a class="btn-link" onclick="copyTemplate(${t.id})">复制</a>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/template/list">客户回访</a>
+      <span class="sep">/</span>
+      <span class="current">消息模板</span>
+    </div>
+    <div class="page-header">
+      <h2>消息模板</h2>
+      <button class="btn btn-primary" onclick="navigate('#/template/add')"><i class="ri-add-line"></i> 新增模板</button>
+    </div>
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>模板名称</th><th>内容</th><th>变量数</th><th>创建时间</th><th>更新时间</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="total">共 ${data.length} 条</span>
+        <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
+        <span class="page-btn active">1</span>
+        <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
+      </div>
+    </div>`;
+}
+
+function previewTemplate(id) {
+  const t = store.templates.find(x => x.id === id);
+  if (!t) return;
+  const vars = (t.content.match(/\{\{([^}]+)\}\}/g) || []);
+  const uniqueVars = [...new Set(vars)];
+  const contentHtml = t.content.replace(/\{\{([^}]+)\}\}/g, '<span class="var-tag">{{$1}}</span>');
+  const varListHtml = uniqueVars.map(v => `<span class="var-item-preview"><i class="ri-price-tag-3-line"></i> ${v}</span>`).join('');
+
+  showModal({
+    width: 600,
+    title: '模板预览',
+    content: `
+      <div class="template-preview-content">
+        <h4 style="margin-bottom:12px">${t.name}</h4>
+        <div style="padding:16px;background:#f5f5f5;border-radius:var(--radius);line-height:1.8">${contentHtml}</div>
+        <div class="var-list-preview">
+          <h4>变量列表（${uniqueVars.length}个）</h4>
+          <div>${varListHtml}</div>
+        </div>
+      </div>`,
+    footer: `<button class="btn btn-primary" onclick="closeModal()">关闭</button>`
+  });
+}
+
+function confirmDeleteTemplate(id, name) {
+  showModal({
+    width: 420,
+    title: '确认删除',
+    content: `
+      <div class="confirm-icon"><i class="ri-error-warning-line"></i></div>
+      <div class="confirm-body">确定删除模板 <span class="highlight">"${name}"</span> 吗？删除后不可恢复。</div>`,
+    footer: `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-danger" onclick="deleteTemplate(${id})">确定删除</button>`
+  });
+}
+function deleteTemplate(id) {
+  store.templates = store.templates.filter(t => t.id !== id);
+  closeModal();
+  showMessage('success', '删除成功');
+  renderTemplateList(document.getElementById('page-content'));
+}
+
+function copyTemplate(id) {
+  const t = store.templates.find(x => x.id === id);
+  if (!t) return;
+  const newT = {
+    ...t,
+    id: store.nextTemplateId++,
+    name: t.name + '(副本)',
+    createdAt: new Date().toISOString().slice(0,16).replace('T',' '),
+    updatedAt: new Date().toISOString().slice(0,16).replace('T',' ')
+  };
+  store.templates.unshift(newT);
+  showMessage('success', '复制成功');
+  renderTemplateList(document.getElementById('page-content'));
+}
+
+// ===== Template Form =====
+let templateEditorState = { varPanelOpen: false };
+
+function renderTemplateForm(container, data) {
+  const isEdit = !!data;
+  const name = data ? data.name : '';
+  const content = data ? data.content : '';
+
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/template/list">客户回访</a>
+      <span class="sep">/</span>
+      <a href="#/template/list">消息模板</a>
+      <span class="sep">/</span>
+      <span class="current">${isEdit ? '编辑模板' : '新增模板'}</span>
+    </div>
+    <div class="page-header"><h2>${isEdit ? '编辑模板' : '新增模板'}</h2></div>
+
+    <div class="strategy-form-card">
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 模板名称</label>
+        <input type="text" id="template-name" value="${name}" maxlength="50" placeholder="请输入模板名称" oninput="updateTemplateCharCount()" onblur="validateTemplateName()">
+        <div class="char-count" id="template-name-count">${name.length}/50</div>
+        <div class="form-item-error hidden" id="template-name-error"></div>
+      </div>
+
+      <div class="form-item">
+        <label class="form-item-label"><span class="required">*</span> 消息内容</label>
+        <div class="editor-container">
+          <div class="editor-left">
+            <div class="editor-toolbar">
+              <button class="toolbar-btn" title="加粗" onclick="execFormat('bold')"><i class="ri-bold"></i></button>
+              <button class="toolbar-btn" title="斜体" onclick="execFormat('italic')"><i class="ri-italic"></i></button>
+              <div class="separator"></div>
+              <div style="position:relative">
+                <button class="insert-var-btn" onclick="toggleVarPanel()"><i class="ri-code-box-line"></i> 插入变量</button>
+                <div class="var-panel" id="var-panel">
+                  <h4>选择变量</h4>
+                  <div class="var-list">
+                    ${VARIABLES.map(v => `
+                      <div class="var-item" onclick="insertVariable('${v.key}')">
+                        <span class="var-name">${v.name}</span>
+                        <span class="var-key">${v.key}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="editor-area" id="template-editor" contenteditable="true" data-placeholder="请输入消息内容..." oninput="onEditorInput()">${content ? contentToEditorHtml(content) : ''}</div>
+            <div class="editor-footer">
+              <span>支持插入变量</span>
+              <span id="editor-char-count">0/2000</span>
+            </div>
+          </div>
+          <div class="editor-right">
+            <div class="preview-area">
+              <h4>内容预览</h4>
+              <div id="live-preview">
+                ${content ? renderPreviewContent(content) : '<div class="preview-empty">编辑内容后实时预览</div>'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-actions" style="margin:0 -32px -24px;padding:16px 32px;border-top:1px solid var(--border-light);display:flex;justify-content:flex-end;gap:8px;border-radius:0 0 var(--radius) var(--radius)">
+        <button class="btn" onclick="navigate('#/template/list')">取消</button>
+        <button class="btn btn-primary" onclick="saveTemplate(${isEdit ? data.id : 'null'})">保存</button>
+      </div>
+    </div>`;
+
+  setTimeout(() => onEditorInput(), 0);
+}
+
+function contentToEditorHtml(content) {
+  return content.replace(/\{\{([^}]+)\}\}/g, `<span class="var-tag" contenteditable="false" data-var="{{$1}}">{{${'$'}{1}}}<span class="remove-var" onclick="removeVarTag(this,event)">&times;</span></span>`);
+}
+
+function renderPreviewContent(content) {
+  let html = content;
+  VARIABLES.forEach(v => {
+    html = html.replace(new RegExp(v.key.replace(/[{}]/g, '\\$&'), 'g'), `<span class="preview-var">${v.example}</span>`);
+  });
+  return `<div class="preview-bubble">${html}</div>`;
+}
+
+function execFormat(cmd) {
+  document.execCommand(cmd, false, null);
+  document.getElementById('template-editor').focus();
+}
+
+function toggleVarPanel() {
+  const panel = document.getElementById('var-panel');
+  panel.classList.toggle('show');
+}
+
+function insertVariable(key) {
+  const editor = document.getElementById('template-editor');
+  editor.focus();
+  const tag = document.createElement('span');
+  tag.className = 'var-tag';
+  tag.contentEditable = 'false';
+  tag.dataset.var = key;
+  tag.innerHTML = `${key}<span class="remove-var" onclick="removeVarTag(this,event)">&times;</span>`;
+
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    // Check if we're inside the editor
+    if (editor.contains(range.commonAncestorContainer)) {
+      range.insertNode(tag);
+      range.setStartAfter(tag);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      editor.appendChild(tag);
+    }
+  } else {
+    editor.appendChild(tag);
+  }
+
+  document.getElementById('var-panel').classList.remove('show');
+  onEditorInput();
+}
+
+function removeVarTag(el, event) {
+  event.stopPropagation();
+  event.preventDefault();
+  const tag = el.closest('.var-tag');
+  if (tag) tag.remove();
+  onEditorInput();
+}
+
+function getEditorContent() {
+  const editor = document.getElementById('template-editor');
+  let text = '';
+  const walk = (node) => {
+    if (node.nodeType === 3) {
+      text += node.textContent;
+    } else if (node.nodeType === 1) {
+      if (node.classList && node.classList.contains('var-tag')) {
+        text += node.dataset.var || '';
+      } else {
+        node.childNodes.forEach(walk);
+      }
+    }
+  };
+  editor.childNodes.forEach(walk);
+  return text;
+}
+
+function onEditorInput() {
+  const editor = document.getElementById('template-editor');
+  const content = getEditorContent();
+  const charCount = document.getElementById('editor-char-count');
+  charCount.textContent = `${content.length}/2000`;
+  charCount.classList.toggle('over', content.length >= 2000);
+
+  // Update live preview
+  const preview = document.getElementById('live-preview');
+  if (content.trim()) {
+    preview.innerHTML = renderPreviewContent(content);
+  } else {
+    preview.innerHTML = '<div class="preview-empty">编辑内容后实时预览</div>';
+  }
+}
+
+function updateTemplateCharCount() {
+  const input = document.getElementById('template-name');
+  const count = document.getElementById('template-name-count');
+  count.textContent = `${input.value.length}/50`;
+  count.classList.toggle('over', input.value.length >= 50);
+}
+
+function validateTemplateName() {
+  const input = document.getElementById('template-name');
+  const error = document.getElementById('template-name-error');
+  if (!input.value.trim()) {
+    input.classList.add('error');
+    error.textContent = '请输入模板名称';
+    error.classList.remove('hidden');
+    return false;
+  }
+  input.classList.remove('error');
+  error.classList.add('hidden');
+  return true;
+}
+
+function saveTemplate(editId) {
+  const nameValid = validateTemplateName();
+  if (!nameValid) return;
+  const name = document.getElementById('template-name').value.trim();
+  const content = getEditorContent();
+  if (!content.trim()) { showMessage('error', '请输入消息内容'); return; }
+
+  const varCount = (content.match(/\{\{[^}]+\}\}/g) || []).length;
+  const now = new Date().toISOString().slice(0,16).replace('T',' ');
+
+  if (editId) {
+    const t = store.templates.find(x => x.id === editId);
+    if (t) {
+      t.name = name;
+      t.content = content;
+      t.variableCount = varCount;
+      t.updatedAt = now;
+    }
+    showMessage('success', '模板更新成功');
+  } else {
+    store.templates.unshift({
+      id: store.nextTemplateId++,
+      name, content, variableCount: varCount,
+      createdAt: now, updatedAt: now
+    });
+    showMessage('success', '模板创建成功');
+  }
+  navigate('#/template/list');
+}
+
+// ===== Broadcast Placeholder =====
+function renderBroadcastPlaceholder(container) {
+  container.innerHTML = `
+    <div class="breadcrumb">
+      <a href="#/broadcast/list">客户回访</a>
+      <span class="sep">/</span>
+      <span class="current">群发</span>
+    </div>
+    <div class="card">
+      <div class="empty-state">
+        <i class="ri-send-plane-2-line"></i>
+        <p>群发功能暂未开放，敬请期待</p>
+      </div>
+    </div>`;
+}
+
+// Close var panel when clicking outside
+document.addEventListener('click', e => {
+  const panel = document.getElementById('var-panel');
+  if (panel && panel.classList.contains('show')) {
+    if (!e.target.closest('.insert-var-btn') && !e.target.closest('.var-panel')) {
+      panel.classList.remove('show');
+    }
+  }
+});
+</script>
+</body>
+</html>
