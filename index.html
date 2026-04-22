@@ -442,31 +442,23 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
   margin-left: 2px; opacity: 0.6; transition: opacity 0.2s;
 }
 .var-tag .remove-var:hover { opacity: 1; }
-/* ===== Inline Variable Panel ===== */
-.var-panel-inline {
-  background: #fafafa; border: 1px solid #e8e8e8; border-top: none;
-  border-radius: 0 0 4px 4px; padding: 10px 14px;
+/* ===== Variable Panel (Dropdown) ===== */
+.var-panel {
+  position: absolute; top: 100%; left: 0; z-index: 100;
+  width: 320px; background: #fff; border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #e8e8e8;
+  padding: 12px; display: none; margin-top: 4px;
 }
-.var-panel-inline-title {
-  font-size: 12px; color: #999; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 4px;
+.var-panel.show { display: block; }
+.var-panel h4 { font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+.var-panel .var-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.var-panel .var-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border: 1px solid #e8e8e8; border-radius: 4px; cursor: pointer; transition: all 0.2s;
 }
-.var-panel-inline-title i { font-size: 14px; }
-.var-list-inline {
-  display: flex; flex-wrap: wrap; gap: 6px;
-}
-.var-item-inline {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px; background: #fff; border: 1px solid #d9d9d9;
-  border-radius: 4px; cursor: pointer; font-size: 13px;
-  transition: all 0.2s; user-select: none;
-}
-.var-item-inline:hover { border-color: #1890ff; color: #1890ff; background: #e6f7ff; }
-.var-item-inline:active { background: #bae7ff; }
-.var-item-inline .var-name { color: #333; font-size: 13px; }
-.var-item-inline .var-key { color: #999; font-size: 11px; }
-.var-item-inline:hover .var-name { color: #1890ff; }
-.var-item-inline:hover .var-key { color: #69c0ff; }
+.var-panel .var-item:hover { border-color: #1890ff; background: #e6f7ff; }
+.var-panel .var-item .var-name { font-size: 13px; color: #333; display: block; }
+.var-panel .var-item .var-key { font-size: 12px; color: #999; display: block; margin-top: 2px; }
 
 .preview-area {
   background: #fafafa; border-radius: var(--radius);
@@ -548,21 +540,6 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
   border-radius: 4px; transition: all 0.2s;
 }
 .attachment-card-delete:hover { color: #f5222d; background: rgba(245,34,45,0.08); }
-
-.attachment-type-inline {
-  background: #fafafa; border: 1px dashed #d9d9d9; border-radius: 4px;
-  padding: 12px; margin-top: 8px;
-}
-.attachment-type-options { display: flex; flex-wrap: wrap; gap: 8px; }
-.attachment-type-option {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px; border-radius: 4px; cursor: pointer;
-  transition: background 0.2s;
-}
-.attachment-type-option:hover { background: #f5f5f5; }
-.attachment-type-option i:first-child { font-size: 24px; }
-.att-type-name { font-size: 13px; color: #333; font-weight: 500; }
-.att-type-desc { font-size: 12px; color: #999; margin-top: 2px; }
 
 /* ===== Filter Card ===== */
 .filter-bar {
@@ -1156,56 +1133,241 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
 .filter-tag:hover { color: #1890ff; }
 .filter-tag.active { color: #1890ff; border-bottom-color: #1890ff; font-weight: 500; }
 
-/* ===== Strategy Flow ===== */
-.strategy-flow {
-  display: flex; align-items: stretch; gap: 0; padding: 24px 0;
-  overflow-x: auto;
+/* ===== Strategy Canvas Workflow ===== */
+.strategy-canvas-page {
+  display: flex; flex-direction: column; height: calc(100vh - 48px); background: #f0f2f5; overflow: hidden;
 }
-.flow-node {
-  min-width: 240px; border-radius: 8px; padding: 16px;
-  flex-shrink: 0; transition: box-shadow 0.3s;
+.strategy-top-bar {
+  height: 56px; background: #fff; border-bottom: 1px solid #e8e8e8;
+  display: flex; align-items: center; padding: 0 20px; gap: 16px; flex-shrink: 0; z-index: 20;
 }
-.flow-node:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.09); }
-.flow-node-header {
+.strategy-top-bar .top-bar-name {
+  font-size: 16px; font-weight: 600; color: #1a1a2e; min-width: 120px; max-width: 260px;
+  border: 1px solid transparent; border-radius: 4px; padding: 4px 8px; outline: none;
+  background: transparent; transition: all 0.2s;
+}
+.strategy-top-bar .top-bar-name:hover { border-color: #d9d9d9; background: #fafafa; }
+.strategy-top-bar .top-bar-name:focus { border-color: #6366f1; background: #fff; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+.strategy-top-bar .top-bar-desc {
+  font-size: 13px; color: #999; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.strategy-top-bar .top-bar-actions { display: flex; gap: 8px; margin-left: auto; }
+
+.strategy-left-panel {
+  width: 240px; background: #fff; border-right: 1px solid #e8e8e8;
+  display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.25s ease; overflow: hidden; z-index: 10;
+}
+.strategy-left-panel.collapsed { width: 64px; }
+.panel-header {
+  padding: 12px 16px; font-size: 13px; font-weight: 600; color: #333;
+  border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 8px;
+}
+.panel-content { flex: 1; overflow-y: auto; padding: 12px; }
+.panel-section-title {
+  font-size: 12px; color: #999; font-weight: 500; margin-bottom: 8px; padding-left: 4px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.strategy-left-panel.collapsed .panel-section-title,
+.strategy-left-panel.collapsed .panel-content { display: none; }
+.strategy-left-panel.collapsed .panel-header { justify-content: center; padding: 12px 8px; font-size: 0; }
+.strategy-left-panel.collapsed .panel-header::after { content: '\2261'; font-size: 18px; color: #666; }
+
+.strategy-type-radio-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.strategy-type-radio {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px;
+  border: 1px solid #e8e8e8; cursor: pointer; transition: all 0.2s; font-size: 13px; color: #333;
+}
+.strategy-type-radio:hover { border-color: #6366f1; background: #f5f3ff; }
+.strategy-type-radio.active { border-color: #6366f1; background: #eef2ff; color: #4f46e5; font-weight: 500; }
+.strategy-type-radio i { font-size: 16px; }
+
+.node-panel-list { display: flex; flex-direction: column; gap: 6px; }
+.node-panel-card {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px;
+  border: 1px solid #e8e8e8; cursor: grab; transition: all 0.2s; font-size: 13px; color: #555;
+  background: #fff; user-select: none;
+}
+.node-panel-card:hover { border-color: #6366f1; background: #f5f3ff; box-shadow: 0 1px 4px rgba(99,102,241,0.12); }
+.node-panel-card:active { cursor: grabbing; }
+.node-panel-card .npc-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.node-panel-card .npc-icon.blue { background: #eef2ff; color: #6366f1; }
+.node-panel-card .npc-icon.green { background: #ecfdf5; color: #10b981; }
+.node-panel-card .npc-icon.orange { background: #fff7ed; color: #f97316; }
+.node-panel-card .npc-icon.purple { background: #f5f3ff; color: #8b5cf6; }
+
+.strategy-canvas-area {
+  flex: 1; position: relative; overflow: hidden;
+  background-color: #f8f9fc;
+  background-image: radial-gradient(circle, #d5d8e0 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.canvas-nodes-layer {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  transform-origin: 0 0;
+}
+.canvas-edges-layer {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 1;
+}
+.canvas-edges-layer svg { width: 100%; height: 100%; overflow: visible; }
+
+.canvas-toolbar {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #fff; border: 1px solid #e8e8e8; border-radius: 8px;
+  display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08); z-index: 15;
+}
+.canvas-toolbar button {
+  width: 32px; height: 32px; border: none; background: transparent; border-radius: 6px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #555; transition: all 0.15s;
+}
+.canvas-toolbar button:hover { background: #f0f0f0; color: #333; }
+.canvas-toolbar .zoom-label { font-size: 12px; color: #666; min-width: 40px; text-align: center; user-select: none; }
+.canvas-toolbar .toolbar-sep { width: 1px; height: 20px; background: #e8e8e8; margin: 0 4px; }
+
+.canvas-node {
+  position: absolute; width: 280px; background: #fff; border-radius: 10px;
+  border: 2px solid #e8e8e8; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  cursor: move; user-select: none; z-index: 5; transition: box-shadow 0.2s, border-color 0.2s;
+}
+.canvas-node:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.canvas-node.selected { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 4px 16px rgba(0,0,0,0.1); }
+.canvas-node.error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
+.canvas-node.dragging { opacity: 0.9; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+
+.canvas-node-header {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0; font-size: 13px; font-weight: 600; color: #333;
+  border-radius: 8px 8px 0 0;
+}
+.canvas-node-header .cnh-icon { font-size: 16px; }
+.canvas-node-header .cnh-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-node-header .cnh-menu {
+  width: 24px; height: 24px; border: none; background: transparent; border-radius: 4px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #999; transition: all 0.15s;
+}
+.canvas-node-header .cnh-menu:hover { background: #f0f0f0; color: #333; }
+
+.canvas-node-header.type-trigger-blue { background: #eef2ff; }
+.canvas-node-header.type-trigger-blue .cnh-icon { color: #6366f1; }
+.canvas-node-header.type-trigger-orange { background: #fff7ed; }
+.canvas-node-header.type-trigger-orange .cnh-icon { color: #f97316; }
+.canvas-node-header.type-segment { background: #eef2ff; }
+.canvas-node-header.type-segment .cnh-icon { color: #6366f1; }
+.canvas-node-header.type-mass-send { background: #ecfdf5; }
+.canvas-node-header.type-mass-send .cnh-icon { color: #10b981; }
+.canvas-node-header.type-selector { background: #f5f3ff; }
+.canvas-node-header.type-selector .cnh-icon { color: #8b5cf6; }
+.canvas-node-header.type-welcome { background: #ecfdf5; }
+.canvas-node-header.type-welcome .cnh-icon { color: #10b981; }
+
+.canvas-node-body { padding: 12px 14px; font-size: 13px; color: #555; }
+
+.conn-port {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: #6366f1; border: 2px solid #fff; cursor: crosshair; z-index: 10;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.conn-port:hover { transform: scale(1.3); box-shadow: 0 0 0 3px rgba(99,102,241,0.25); }
+.conn-port.port-out { right: -7px; top: 50%; margin-top: -6px; }
+.conn-port.port-in { left: -7px; top: 50%; margin-top: -6px; }
+.conn-port.port-out-right { right: -7px; }
+.conn-port.port-in-left { left: -7px; }
+
+.selector-conditions { display: flex; flex-direction: column; gap: 6px; }
+.selector-condition-row {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px; position: relative;
+}
+.selector-condition-row .scr-label { font-size: 12px; color: #666; min-width: 36px; }
+.selector-condition-row .scr-input {
+  flex: 1; height: 28px; border: 1px solid #d9d9d9; border-radius: 4px;
+  padding: 0 8px; font-size: 12px; outline: none; transition: border-color 0.2s;
+}
+.selector-condition-row .scr-input:focus { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,0.15); }
+.selector-condition-row .scr-delete {
+  width: 22px; height: 22px; border: none; background: transparent; border-radius: 4px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #999; transition: all 0.15s; flex-shrink: 0;
+}
+.selector-condition-row .scr-delete:hover { background: #fee2e2; color: #ef4444; }
+.selector-condition-row .scr-port { position: absolute; right: -7px; top: 50%; margin-top: -6px; }
+
+.selector-add-btn {
+  width: 100%; height: 32px; border: 1px dashed #d9d9d9; border-radius: 6px;
+  background: transparent; color: #999; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  transition: all 0.2s; margin-top: 4px;
+}
+.selector-add-btn:hover { border-color: #8b5cf6; color: #8b5cf6; background: #f5f3ff; }
+
+.node-context-menu {
+  position: fixed; background: #fff; border: 1px solid #e8e8e8; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 1000; min-width: 140px;
+  padding: 4px 0; display: none;
+}
+.node-context-menu .ncm-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px;
+  color: #333; cursor: pointer; transition: background 0.15s;
+}
+.node-context-menu .ncm-item:hover { background: #f5f5f5; }
+.node-context-menu .ncm-item.danger { color: #ef4444; }
+.node-context-menu .ncm-item.danger:hover { background: #fef2f2; }
+.node-context-menu .ncm-item i { font-size: 15px; width: 18px; text-align: center; }
+
+.canvas-validation-bar {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+  padding: 8px 16px; font-size: 13px; color: #dc2626; z-index: 20;
   display: flex; align-items: center; gap: 8px;
-  font-size: 14px; font-weight: 500; margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.1);
 }
-.flow-node-header i { font-size: 18px; }
-.flow-node-trigger { border: 2px solid #1890ff; background: #fff; }
-.flow-node-trigger .flow-node-header i { color: #1890ff; }
-.flow-node-segment { border: 2px solid #1890ff; background: #fff; }
-.flow-node-segment .flow-node-header i { color: #1890ff; }
-.flow-node-execute { border: 2px solid #52c41a; background: #f6ffed; }
-.flow-node-execute .flow-node-header i { color: #52c41a; }
-.flow-node-end { border: 2px solid #d9d9d9; background: #fafafa; }
-.flow-node-end .flow-node-header i { color: #999; }
-.flow-node-welcome-trigger { border: 2px solid #fa8c16; background: #fff7e6; }
-.flow-node-welcome-trigger .flow-node-header i { color: #fa8c16; }
-.flow-node-condition { border: 2px solid #722ed1; background: #f9f0ff; }
-.flow-node-condition .flow-node-header i { color: #722ed1; }
-.flow-node-condition.disabled { border: 2px dashed #d9d9d9; background: #fafafa; }
-.flow-node-condition.disabled .flow-node-header i { color: #999; }
+.canvas-validation-bar i { font-size: 16px; }
+.canvas-validation-bar .cvb-close {
+  margin-left: 8px; cursor: pointer; font-size: 14px; color: #999;
+}
+.canvas-validation-bar .cvb-close:hover { color: #333; }
 
-.flow-arrow {
-  display: flex; align-items: center; justify-content: center;
-  min-width: 48px; color: #1890ff; font-size: 20px;
+.tpl-preview {
+  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px;
+  padding: 8px 10px; margin-top: 8px;
 }
-.flow-arrow i { animation: flowRight 1.5s infinite; }
-@keyframes flowRight {
-  0%, 100% { opacity: 0.3; transform: translateX(0); }
-  50% { opacity: 1; transform: translateX(4px); }
+.tpl-preview .tp-name { font-size: 12px; font-weight: 500; color: #333; margin-bottom: 4px; }
+.tpl-preview .tp-content { font-size: 11px; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tpl-preview .tp-attach { margin-top: 4px; }
+.tpl-preview .tp-attach span { background: #f0f2f5; color: #999; font-size: 10px; padding: 0 6px; border-radius: 2px; line-height: 18px; display: inline-block; }
+
+.segment-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.segment-tags .tag { background: #eef2ff; color: #6366f1; border: 1px solid #c7d2fe; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.segment-estimate { font-size: 12px; color: #333; font-weight: 500; margin-top: 6px; }
+
+.mini-radio-group { display: flex; gap: 0; }
+.mini-radio-btn {
+  height: 28px; padding: 0 12px; border: 1px solid var(--border);
+  background: #fff; cursor: pointer; font-size: 12px; color: var(--text-primary);
+  transition: all 0.2s; display: inline-flex; align-items: center; user-select: none;
+}
+.mini-radio-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.mini-radio-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.mini-radio-btn + .mini-radio-btn { margin-left: -1px; }
+.mini-radio-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; z-index: 1; }
+.mini-radio-btn:not(.active):hover { color: var(--primary); border-color: var(--primary); }
+
+.new-tpl-link {
+  color: #6366f1; font-size: 12px; cursor: pointer; white-space: nowrap; text-decoration: none;
+}
+.new-tpl-link:hover { color: #4f46e5; text-decoration: underline; }
+
+.strategy-form-footer {
+  position: sticky; bottom: 0; background: #fff;
+  border-top: 1px solid #e8e8e8;
+  padding: 16px 32px; display: flex; justify-content: flex-end; gap: 8px;
+  z-index: 10; margin: 0 -24px; border-radius: 0;
 }
 
-.flow-node .node-content { font-size: 13px; color: #666; }
-.flow-node .node-content .node-desc { font-size: 12px; color: #999; margin-top: 8px; }
-.flow-node .segment-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.flow-node .segment-tags .tag { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
-.flow-node .empty-segment { color: #999; font-size: 13px; text-align: center; padding: 16px 0; }
-
-/* Strategy type description cards */
-.strategy-type-desc {
-  display: flex; gap: 16px; margin-top: 16px;
-}
+.strategy-type-desc { display: flex; gap: 16px; margin-top: 16px; }
 .strategy-type-desc-card {
   flex: 1; padding: 16px; background: #fafafa; border: 1px solid #e8e8e8;
   border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;
@@ -1214,51 +1376,27 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
 .strategy-type-desc-card .desc-title { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 4px; }
 .strategy-type-desc-card .desc-text { font-size: 13px; color: #666; line-height: 1.5; }
 
-/* Condition branch config for welcome strategy */
-.branch-config-area { margin-top: 16px; }
-.branch-card {
-  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 4px;
-  padding: 12px 16px; margin-bottom: 8px; position: relative;
-  border-left: 4px solid #1890ff; transition: all 0.3s;
-}
-.branch-card-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
-}
-.branch-label {
-  display: inline-block; font-size: 12px; color: #fff; padding: 0 8px;
-  border-radius: 2px; line-height: 20px;
-}
-.branch-card .branch-fields { display: flex; gap: 8px; align-items: center; }
-.branch-card .branch-fields select, .branch-card .branch-fields input { height: 32px; }
-.branch-delete { color: #999; cursor: pointer; font-size: 16px; }
-.branch-delete:hover { color: #f5222d; }
-
-/* Strategy form sticky footer */
-.strategy-form-footer {
-  position: sticky; bottom: 0; background: #fff;
-  border-top: 1px solid #e8e8e8;
-  padding: 16px 32px; display: flex; justify-content: flex-end; gap: 8px;
-  z-index: 10; margin: 0 -24px; border-radius: 0;
-}
-
-/* Strategy type radio button group */
 .strategy-type-group { display: flex; gap: 0; }
 .strategy-type-btn {
   height: 36px; padding: 0 20px; border: 1px solid var(--border);
   background: #fff; cursor: pointer; font-size: 14px; color: var(--text-primary);
-  transition: all 0.2s; display: inline-flex; align-items: center;
-  user-select: none;
+  transition: all 0.2s; display: inline-flex; align-items: center; user-select: none;
 }
 .strategy-type-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
 .strategy-type-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
 .strategy-type-btn + .strategy-type-btn { margin-left: -1px; }
-.strategy-type-btn.active {
-  background: var(--primary); border-color: var(--primary); color: #fff; z-index: 1;
-}
+.strategy-type-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; z-index: 1; }
 .strategy-type-btn:not(.active):hover { color: var(--primary); border-color: var(--primary); }
-.strategy-type-btn.disabled {
-  background: #f5f5f5; border-color: #d9d9d9; color: #999; cursor: not-allowed;
+.strategy-type-btn.disabled { background: #f5f5f5; border-color: #d9d9d9; color: #999; cursor: not-allowed; }
+
+/* Canvas node inner form elements */
+.canvas-node-body select,
+.canvas-node-body input {
+  height: 30px; padding: 0 8px; border: 1px solid #d9d9d9; border-radius: 4px;
+  font-size: 12px; outline: none; transition: border-color 0.2s;
 }
+.canvas-node-body select:focus,
+.canvas-node-body input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.12); }
 
 /* Tooltip */
 .tooltip-wrapper { position: relative; display: inline-block; }
@@ -1305,28 +1443,6 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
 .condition-switch input:checked + .slider { background: var(--primary); }
 .condition-switch input:checked + .slider:before { transform: translateX(22px); }
 
-/* Flow node inner radio/select */
-.flow-node .node-content select,
-.flow-node .node-content input {
-  height: 32px; padding: 4px 8px; border: 1px solid var(--border);
-  border-radius: var(--radius); font-size: 13px; outline: none;
-}
-.flow-node .node-content select:focus,
-.flow-node .node-content input:focus {
-  border-color: var(--primary); box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
-}
-.flow-node .node-content .mini-radio-group { display: flex; gap: 0; }
-.flow-node .node-content .mini-radio-btn {
-  height: 28px; padding: 0 12px; border: 1px solid var(--border);
-  background: #fff; cursor: pointer; font-size: 12px; color: var(--text-primary);
-  transition: all 0.2s; display: inline-flex; align-items: center; user-select: none;
-}
-.flow-node .node-content .mini-radio-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-.flow-node .node-content .mini-radio-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-.flow-node .node-content .mini-radio-btn + .mini-radio-btn { margin-left: -1px; }
-.flow-node .node-content .mini-radio-btn.active {
-  background: var(--primary); border-color: var(--primary); color: #fff; z-index: 1;
-}
 .flow-node .node-content .mini-radio-btn:not(.active):hover { color: var(--primary); border-color: var(--primary); }
 
 /* ===== Broadcast Event - New Styles ===== */
@@ -1444,6 +1560,14 @@ textarea { height: auto; min-height: 80px; resize: vertical; padding: 8px 11px; 
   margin-bottom: 16px;
 }
 .action-bar .action-title { font-size: 18px; font-weight: 500; color: #333; }
+.action-dropdown-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+  font-size: 13px; color: #333; cursor: pointer; transition: background 0.2s;
+}
+.action-dropdown-item:hover { background: #f5f5f5; }
+.action-dropdown-item.danger { color: #f5222d; }
+.action-dropdown-item.danger:hover { background: #fff1f0; }
+.action-dropdown-item i { font-size: 14px; }
 </style>
 </head>
 <body>
@@ -1752,6 +1876,7 @@ function renderSegmentList(container) {
       <td><a class="link" href="#/segment/detail/${s.id}">${s.name}</a></td>
       <td><span class="text-ellipsis" title="${s.description}">${s.description}</span></td>
       <td>${s.ruleCount}个条件</td>
+      <td style="text-align:center">${SEGMENT_CUSTOMER_COUNTS[s.name] ? SEGMENT_CUSTOMER_COUNTS[s.name].toLocaleString() : '-'}</td>
       <td>${s.creator}</td>
       <td>${s.createTime}</td>
       <td><span class="tag ${s.updateMethod==='scheduled'?'tag-blue':'tag-gray'}" style="${s.updateMethod==='manual'?'color:#999;background:#f0f2f5;border-color:#d9d9d9':''}">${s.updateMethod==='scheduled'?'定时更新':'手动更新'}</span></td>
@@ -1759,6 +1884,9 @@ function renderSegmentList(container) {
       <td>
         <div class="actions">
           <a class="btn-link" onclick="navigate('#/segment/edit/${s.id}')"><i class="ri-edit-line"></i> 编辑</a>
+          <span class="action-separator">|</span>
+          <a class="btn-link" onclick="showMessage('info','打开企微标签配置：${s.name}')"><i class="ri-price-tag-3-line"></i> 更新企微标签</a>
+          <span class="action-separator">|</span>
           <a class="btn-link danger" onclick="confirmDeleteSegment(${s.id},'${s.name}')"><i class="ri-delete-bin-line"></i> 删除</a>
         </div>
       </td>
@@ -1785,6 +1913,14 @@ function renderSegmentList(container) {
             <i class="ri-close-line clear-icon" id="seg-search-clear" onclick="clearSegSearch()"></i>
           </div>
         </div>
+        <div class="filter-item">
+          <label>更新方式</label>
+          <div class="filter-tags">
+            <span class="filter-tag active" onclick="filterSegmentUpdateMethod('all',this)">全部</span>
+            <span class="filter-tag" onclick="filterSegmentUpdateMethod('manual',this)">手动更新</span>
+            <span class="filter-tag" onclick="filterSegmentUpdateMethod('scheduled',this)">定时更新</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -1792,7 +1928,7 @@ function renderSegmentList(container) {
         <table>
           <thead>
             <tr>
-              <th>分群名称</th><th>描述</th><th>规则</th><th>创建人</th><th>创建时间</th><th>更新方式</th><th>企微标签</th><th>操作</th>
+              <th>分群名称</th><th>描述</th><th>规则</th><th style="text-align:center">匹配客户数</th><th>创建人</th><th>创建时间</th><th>更新方式</th><th>企微标签</th><th>操作</th>
             </tr>
           </thead>
           <tbody id="seg-list-tbody">${tableRows}</tbody>
@@ -1807,22 +1943,34 @@ function renderSegmentList(container) {
     </div>`;
 }
 
+window._segUpdateMethodFilter = 'all';
+window.filterSegmentUpdateMethod = function(method, el) {
+  window._segUpdateMethodFilter = method;
+  el.parentElement.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  handleSegSearch(document.getElementById('seg-search-input').value);
+};
+
 window.handleSegSearch = function(keyword) {
   const clearIcon = document.getElementById('seg-search-clear');
   clearIcon.classList.toggle('show', keyword.length > 0);
   const kw = keyword.trim().toLowerCase();
-  const filtered = kw ? store.segments.filter(s => s.name.toLowerCase().includes(kw)) : store.segments;
+  let filtered = kw ? store.segments.filter(s => s.name.toLowerCase().includes(kw)) : store.segments;
+  if (window._segUpdateMethodFilter !== 'all') {
+    filtered = filtered.filter(s => s.updateMethod === window._segUpdateMethodFilter);
+  }
   const tbody = document.getElementById('seg-list-tbody');
   const totalEl = document.getElementById('seg-list-total');
   if (!tbody) return;
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px 0;color:var(--text-tertiary)">暂无匹配的分群</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px 0;color:var(--text-tertiary)">暂无匹配的分群</td></tr>';
   } else {
     tbody.innerHTML = filtered.map(s => `
       <tr>
         <td><a class="link" href="#/segment/detail/${s.id}">${s.name}</a></td>
         <td><span class="text-ellipsis" title="${s.description}">${s.description}</span></td>
         <td>${s.ruleCount}个条件</td>
+        <td style="text-align:center">${SEGMENT_CUSTOMER_COUNTS[s.name] ? SEGMENT_CUSTOMER_COUNTS[s.name].toLocaleString() : '-'}</td>
         <td>${s.creator}</td>
         <td>${s.createTime}</td>
         <td><span class="tag ${s.updateMethod==='scheduled'?'tag-blue':'tag-gray'}" style="${s.updateMethod==='manual'?'color:#999;background:#f0f2f5;border-color:#d9d9d9':''}">${s.updateMethod==='scheduled'?'定时更新':'手动更新'}</span></td>
@@ -1830,6 +1978,9 @@ window.handleSegSearch = function(keyword) {
         <td>
           <div class="actions">
             <a class="btn-link" onclick="navigate('#/segment/edit/${s.id}')"><i class="ri-edit-line"></i> 编辑</a>
+            <span class="action-separator">|</span>
+            <a class="btn-link" onclick="showMessage('info','打开企微标签配置：${s.name}')"><i class="ri-price-tag-3-line"></i> 更新企微标签</a>
+            <span class="action-separator">|</span>
             <a class="btn-link danger" onclick="confirmDeleteSegment(${s.id},'${s.name}')"><i class="ri-delete-bin-line"></i> 删除</a>
           </div>
         </td>
@@ -1887,11 +2038,11 @@ const SEGMENT_DS_CONFIG = {
       {key:"createTime",label:"创建时间",operators:[{key:"inRange",label:"在范围内",valueType:"dateRange"},{key:"notInRange",label:"不在范围内",valueType:"dateRange"}]},
       {key:"deposit",label:"已收预约金",operators:[{key:"eq",label:"=",valueType:"number"},{key:"gt",label:">",valueType:"number"},{key:"lt",label:"<",valueType:"number"},{key:"gte",label:">=",valueType:"number"},{key:"lte",label:"<=",valueType:"number"}]},
       {key:"belongTime",label:"归属时间",operators:[{key:"inRange",label:"在范围内",valueType:"dateRange"},{key:"notInRange",label:"不在范围内",valueType:"dateRange"}]},
-      {key:'scheduleDate',label:'排客日期',type:'date',operators:[{key:'equals',label:'等于'},{key:'inRange',label:'在范围内'},{key:'before',label:'早于'},{key:'after',label:'晚于'}]},
-      {key:'arrivalStatus',label:'到店状态',type:'select',options:['已到店','未到店','部分到店'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]},
-      {key:'settlementStatus',label:'结算状态',type:'select',options:['已结算','未结算','结算中'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]},
-      {key:'refundStatus',label:'流退状态',type:'select',options:['无流退','已流退','流退中'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]},
-      {key:'complaintStatus',label:'客诉状态',type:'select',options:['无客诉','有客诉','处理中'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]}
+      {key:'scheduleDate',label:'排客日期',type:'date',operators:[{key:'equals',label:'等于'},{key:'inRange',label:'在范围内'}]},
+      {key:'arrivalStatus',label:'到店状态',type:'select',options:['未到店','已到店'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]},
+      {key:'settlementStatus',label:'结算状态',type:'select',options:['未结算','已结算'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]},
+      {key:'refundStatus',label:'流退状态',type:'select',options:['正常','流失','退单'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]},
+      {key:'complaintStatus',label:'客诉状态',type:'select',options:['无客诉','有客诉'],operators:[{key:'equals',label:'等于'},{key:'notEquals',label:'不等于'}]}
     ]
   }
 };
@@ -2843,8 +2994,14 @@ function renderStrategyList(container) {
       <td>${s.createdAt}</td>
       <td>
         <div class="actions">
-          <a class="btn-link" onclick="navigate('#/strategy/edit/${s.id}')">编辑</a>
-          <a class="btn-link danger" onclick="confirmDeleteStrategy(${s.id},'${s.name}')">删除</a>
+          <a class="btn-link" onclick="navigate('#/strategy/edit/${s.id}')"><i class="ri-settings-3-line"></i> 配置</a>
+          <div class="action-more" style="position:relative;display:inline-block">
+            <a class="btn-link" onclick="toggleStrategyMore(${s.id},this)" style="padding:0 4px"><i class="ri-more-2-fill"></i></a>
+            <div class="action-dropdown" id="strategy-more-${s.id}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #e8e8e8;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:10;min-width:120px;padding:4px 0">
+              <div class="action-dropdown-item" onclick="toggleStrategyStatus(${s.id});closeStrategyMore()"><i class="ri-${s.status==='enabled'?'pause':'play'}-circle-line"></i> ${s.status==='enabled'?'停用':'启用'}</div>
+              <div class="action-dropdown-item danger" onclick="confirmDeleteStrategy(${s.id},'${s.name}');closeStrategyMore()"><i class="ri-delete-bin-line"></i> 删除</div>
+            </div>
+          </div>
         </div>
       </td>
     </tr>`;
@@ -2852,7 +3009,7 @@ function renderStrategyList(container) {
 
   container.innerHTML = `
     <div class="breadcrumb">
-      <a href="#/strategy/list">客户回访</a>
+      <a href="#/segment/list">客户回访</a>
       <span class="sep">/</span>
       <span class="current">策略</span>
     </div>
@@ -2954,6 +3111,18 @@ function deleteStrategy(id) {
   renderStrategyList(document.getElementById('page-content'));
 }
 
+window.toggleStrategyMore = function(id, el) {
+  const dropdown = document.getElementById('strategy-more-' + id);
+  document.querySelectorAll('.action-dropdown').forEach(d => { if (d.id !== 'strategy-more-' + id) d.style.display = 'none'; });
+  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+};
+window.closeStrategyMore = function() {
+  document.querySelectorAll('.action-dropdown').forEach(d => d.style.display = 'none');
+};
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.action-more')) closeStrategyMore();
+});
+
 // ===== Strategy Form =====
 let strategyFormState = {};
 let strategyBranches = [];
@@ -2989,7 +3158,7 @@ function renderStrategyForm(container, data) {
 
   container.innerHTML = `
     <div class="breadcrumb">
-      <a href="#/strategy/list">客户回访</a>
+      <a href="#/segment/list">客户回访</a>
       <span class="sep">/</span>
       <a href="#/strategy/list">策略</a>
       <span class="sep">/</span>
@@ -3170,11 +3339,12 @@ function renderMassMessageFlow(data) {
       <div class="flow-node flow-node-execute">
         <div class="flow-node-header"><i class="ri-play-circle-line"></i> 执行</div>
         <div class="node-content">
-          <div style="margin-bottom:8px">
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:4px">
             <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.templateId=this.value;updateTemplatePreview(this.value)">
               <option value="">请选择消息模板</option>
               ${templateOptions}
             </select>
+            <a style="color:#1890ff;font-size:12px;cursor:pointer;white-space:nowrap" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
           </div>
           <div id="template-preview-card"></div>
           <div style="font-weight:500;color:#333;margin-top:8px">创建群发</div>
@@ -3186,12 +3356,6 @@ function renderMassMessageFlow(data) {
 
 function renderWelcomeMessageFlow(data) {
   const condEnabled = strategyFormState.conditionEnabled || false;
-
-  // Condition branch config
-  let branchHtml = '';
-  if (condEnabled) {
-    branchHtml = renderBranchConfigArea();
-  }
 
   // Build execute node content based on condition branch state
   let executeContent = '';
@@ -3208,15 +3372,18 @@ function renderWelcomeMessageFlow(data) {
     const welcomeTemplateOptions = store.templates.map(t => `<option value="${t.id}" ${strategyFormState.welcomeTemplateId==t.id?'selected':''}>${t.name}</option>`).join('');
     executeContent = `
       <div class="node-content">
-        <div style="margin-bottom:8px">
-          <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.welcomeTemplateId=this.value;updateWelcomeTemplatePreview(this.value)">
-            <option value="">请选择欢迎语模板</option>
-            ${welcomeTemplateOptions}
-          </select>
+        <div class="welcome-exec-area">
+          <div class="exec-title"><i class="ri-hand-heart-line"></i> 发送欢迎语</div>
+          <div style="display:flex;align-items:center;gap:4px">
+            <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.welcomeTemplateId=this.value;updateWelcomeTemplatePreview(this.value)">
+              <option value="">请选择欢迎语模板</option>
+              ${welcomeTemplateOptions}
+            </select>
+            <a class="new-template-link" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
+          </div>
+          <div id="welcome-template-preview-card"></div>
+          <div class="exec-desc">所有加微成功的客户将收到此欢迎语</div>
         </div>
-        <div id="welcome-template-preview-card"></div>
-        <div style="font-weight:500;color:#333;margin-top:8px">发送欢迎语</div>
-        <div class="node-desc">所有加微成功的客户将收到此欢迎语</div>
       </div>`;
   }
 
@@ -3241,7 +3408,7 @@ function renderWelcomeMessageFlow(data) {
           </div>
         </div>
         <div class="node-content" id="condition-branch-content">
-          ${condEnabled ? renderBranchConfigArea() : '<div class="node-desc">启用后可配置条件分支，不同条件发送不同欢迎语</div>'}
+          ${condEnabled ? renderBranchConfigArea() : '<div class="node-desc">开启后，根据客户加微时的项目匹配不同的欢迎语</div>'}
         </div>
       </div>
       <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
@@ -3332,9 +3499,10 @@ function switchFlowFreq(freq) {
 function toggleConditionBranch(enabled) {
   strategyFormState.conditionEnabled = enabled;
   if (enabled) {
-    // Ensure at least a default branch
-    if (strategyBranches.length === 0) {
-      strategyBranches.push({ conditionField: '', conditionValue: '', id: Date.now() });
+    // Ensure at least a default branch exists
+    const hasDefault = strategyBranches.some(b => b.isDefault);
+    if (!hasDefault) {
+      strategyBranches.push({ conditionField: '加微项目', conditionValue: '', templateId: '', isDefault: true, id: Date.now() });
     }
   }
   // Re-render the entire flow so execute node updates correctly
@@ -3343,58 +3511,152 @@ function toggleConditionBranch(enabled) {
 }
 
 function renderBranchConfigArea() {
-  const colors = ['#1890ff','#52c41a','#fa8c16','#f5222d','#722ed1','#13c2c2','#eb2f96','#faad14','#2f54eb','#a0d911'];
-  let html = '<div class="branch-config-area">';
-  strategyBranches.forEach((b, i) => {
-    const color = colors[i % colors.length];
-    const isDefault = i === 0;
+  // Build template options HTML (reused across rows)
+  const templateOptionsHtml = store.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+  // Separate normal branches and default branch
+  const normalBranches = strategyBranches.filter(b => !b.isDefault);
+  const defaultBranch = strategyBranches.find(b => b.isDefault);
+
+  let html = `
+    <div style="margin-bottom:8px;font-size:13px;color:#666">
+      <span style="font-weight:500;color:#333">按加微项目分流</span>
+    </div>
+    <table class="flow-distribution-table">
+      <thead>
+        <tr>
+          <th class="col-condition">条件项目</th>
+          <th class="col-match">匹配值</th>
+          <th class="col-template">发送欢迎语</th>
+          <th class="col-action">操作</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  // Normal branches
+  normalBranches.forEach((b) => {
+    const realIdx = strategyBranches.indexOf(b);
     const selectedTemplate = b.templateId || '';
+    const tpl = selectedTemplate ? store.templates.find(t => t.id == selectedTemplate) : null;
+    const previewHtml = tpl ? `
+      <div class="template-preview-card">
+        <div class="preview-name">\u{1F4CE} ${tpl.name}</div>
+        <div class="preview-content">${(tpl.content||'').substring(0,30)}...</div>
+        ${tpl.attachments && tpl.attachments.length > 0 ? `<div class="preview-attach"><span>附件: ${tpl.attachments.length}个</span></div>` : ''}
+      </div>` : '';
+
     html += `
-      <div class="branch-card" style="border-left-color:${color}" id="branch-${i}">
-        <div class="branch-card-header">
-          <i class="ri-draggable" style="color:#999;cursor:grab;margin-right:8px"></i>
-          <span class="branch-label" style="background:${color}">分支 ${i + 1}${isDefault ? '（默认）' : ''}</span>
-          ${isDefault ? '' : `<span class="branch-delete" onclick="removeBranch(${i})"><i class="ri-delete-bin-line"></i></span>`}
-        </div>
-        <div class="branch-fields" style="flex-wrap:wrap;gap:6px">
-          <select style="width:100px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px" onchange="strategyBranches[${i}].conditionField=this.value">
-            <option value="">条件字段</option>
-            <option value="customer_tag" ${b.conditionField==='customer_tag'?'selected':''}>客户标签</option>
-            <option value="source" ${b.conditionField==='source'?'selected':''}>客户来源</option>
-            <option value="consume_amount" ${b.conditionField==='consume_amount'?'selected':''}>消费金额</option>
-            <option value="last_active" ${b.conditionField==='last_active'?'selected':''}>最近活跃</option>
-          </select>
-          <input type="text" style="width:80px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" placeholder="条件值" value="${b.conditionValue||''}" onchange="strategyBranches[${i}].conditionValue=this.value">
-          <select style="width:140px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px;flex:1;min-width:120px" onchange="strategyBranches[${i}].templateId=this.value">
-            <option value="">选择欢迎语模板</option>
-            ${store.templates.map(t => `<option value="${t.id}" ${selectedTemplate==t.id?'selected':''}>${t.name}</option>`).join('')}
-          </select>
-        </div>
-      </div>`;
+      <tr>
+        <td class="col-condition">加微项目</td>
+        <td class="col-match">
+          <input type="text" class="match-input" placeholder="请输入项目编号" value="${b.conditionValue||''}" onchange="strategyBranches[${realIdx}].conditionValue=this.value">
+        </td>
+        <td class="col-template">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+            <select class="template-select" onchange="strategyBranches[${realIdx}].templateId=this.value;updateBranchTemplatePreview(${realIdx},this.value)">
+              <option value="">请选择欢迎语模板</option>
+              ${store.templates.map(t => `<option value="${t.id}" ${selectedTemplate==t.id?'selected':''}>${t.name}</option>`).join('')}
+            </select>
+            <a class="new-template-link" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
+          </div>
+          <div id="branch-preview-${realIdx}">${previewHtml}</div>
+        </td>
+        <td class="col-action">
+          <span class="delete-btn" onclick="removeBranch(${realIdx})" title="删除"><i class="ri-delete-bin-line"></i></span>
+        </td>
+      </tr>`;
   });
-  html += '</div>';
-  if (strategyBranches.length < 10) {
-    html += `<button class="btn btn-dashed" style="width:100%;margin-top:8px;height:32px;font-size:13px" onclick="addBranch()"><i class="ri-add-line"></i> 添加分支</button>`;
+
+  // Default branch row
+  const defaultTemplateId = defaultBranch ? (defaultBranch.templateId || '') : '';
+  const defaultTpl = defaultTemplateId ? store.templates.find(t => t.id == defaultTemplateId) : null;
+  const defaultPreviewHtml = defaultTpl ? `
+    <div class="template-preview-card">
+      <div class="preview-name">\u{1F4CE} ${defaultTpl.name}</div>
+      <div class="preview-content">${(defaultTpl.content||'').substring(0,30)}...</div>
+      ${defaultTpl.attachments && defaultTpl.attachments.length > 0 ? `<div class="preview-attach"><span>附件: ${defaultTpl.attachments.length}个</span></div>` : ''}
+    </div>` : '';
+  const defaultIdx = strategyBranches.indexOf(defaultBranch);
+
+  html += `
+      <tr class="row-default">
+        <td class="col-condition" style="color:#999">默认</td>
+        <td class="col-match" style="color:#999">-</td>
+        <td class="col-template">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+            <select class="template-select" onchange="strategyBranches[${defaultIdx}].templateId=this.value;updateBranchTemplatePreview(${defaultIdx},this.value)">
+              <option value="">请选择欢迎语模板</option>
+              ${store.templates.map(t => `<option value="${t.id}" ${defaultTemplateId==t.id?'selected':''}>${t.name}</option>`).join('')}
+            </select>
+            <a class="new-template-link" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
+          </div>
+          <div id="branch-preview-${defaultIdx}">${defaultPreviewHtml}</div>
+        </td>
+        <td class="col-action">-</td>
+      </tr>`;
+
+  html += `
+      </tbody>
+    </table>`;
+
+  // Add distribution button (max 10 normal branches)
+  const normalCount = normalBranches.length;
+  if (normalCount < 10) {
+    html += `<button class="add-distribution-btn" onclick="addBranch()"><i class="ri-add-line"></i> 添加分流</button>`;
+  } else {
+    html += `<button class="add-distribution-btn" disabled><i class="ri-add-line"></i> 最多支持10条分流</button>`;
   }
+
   return html;
 }
 
 function addBranch() {
-  if (strategyBranches.length >= 10) {
-    showMessage('warning', '最多添加10个条件分支');
+  const normalCount = strategyBranches.filter(b => !b.isDefault).length;
+  if (normalCount >= 10) {
+    showMessage('warning', '最多支持10条分流');
     return;
   }
-  strategyBranches.push({ conditionField: '', conditionValue: '', templateId: '', id: Date.now() });
+  const newBranch = { conditionField: '加微项目', conditionValue: '', templateId: '', isDefault: false, id: Date.now() };
+  // Insert before the default branch
+  const defaultIdx = strategyBranches.findIndex(b => b.isDefault);
+  if (defaultIdx >= 0) {
+    strategyBranches.splice(defaultIdx, 0, newBranch);
+  } else {
+    strategyBranches.push(newBranch);
+  }
   const content = document.getElementById('condition-branch-content');
   content.innerHTML = renderBranchConfigArea();
 }
 
 function removeBranch(index) {
-  if (index === 0) return; // Cannot delete default branch
-  strategyBranches.splice(index, 1);
-  const content = document.getElementById('condition-branch-content');
-  content.innerHTML = renderBranchConfigArea();
+  const branch = strategyBranches[index];
+  if (!branch || branch.isDefault) return; // Cannot delete default branch
+  if (branch.templateId) {
+    showModal('确认删除', '确定删除该分流吗？删除后不可恢复。', () => {
+      strategyBranches.splice(index, 1);
+      const content = document.getElementById('condition-branch-content');
+      content.innerHTML = renderBranchConfigArea();
+    });
+  } else {
+    strategyBranches.splice(index, 1);
+    const content = document.getElementById('condition-branch-content');
+    content.innerHTML = renderBranchConfigArea();
+  }
 }
+
+window.updateBranchTemplatePreview = function(branchIndex, templateId) {
+  const previewEl = document.getElementById('branch-preview-' + branchIndex);
+  if (!previewEl) return;
+  if (!templateId) { previewEl.innerHTML = ''; return; }
+  const tpl = store.templates.find(t => t.id == templateId);
+  if (!tpl) { previewEl.innerHTML = ''; return; }
+  const attachCount = tpl.attachments ? tpl.attachments.length : 0;
+  previewEl.innerHTML = `<div class="template-preview-card">
+    <div class="preview-name">\u{1F4CE} ${tpl.name}</div>
+    <div class="preview-content">${(tpl.content||'').substring(0,30)}...</div>
+    ${attachCount > 0 ? `<div class="preview-attach"><span>附件: ${attachCount}个</span></div>` : ''}
+  </div>`;
+};
 
 window.handleStrategySegmentChange = function(selectEl) {
   strategySelectedSegments = Array.from(selectEl.selectedOptions).map(o => parseInt(o.value));
@@ -3597,8 +3859,18 @@ function saveStrategy(editId) {
 }
 
 // ===== Template List =====
+window._templateSearchKeyword = '';
+window.filterTemplateList = function(keyword) {
+  window._templateSearchKeyword = keyword.trim().toLowerCase();
+  renderTemplateList(document.getElementById('page-content'));
+};
+
 function renderTemplateList(container) {
-  const data = store.templates;
+  const keyword = window._templateSearchKeyword;
+  const filteredTemplates = keyword
+    ? store.templates.filter(t => t.name.toLowerCase().includes(keyword) || (t.content||'').toLowerCase().includes(keyword))
+    : store.templates;
+  const data = filteredTemplates;
   let tableRows = data.map(t => `
     <tr>
       <td><span class="link" onclick="previewTemplate(${t.id})">${t.name}</span></td>
@@ -3608,11 +3880,13 @@ function renderTemplateList(container) {
       <td>${t.updatedAt}</td>
       <td>
         <div class="actions">
+          <a class="btn-link" onclick="previewTemplate(${t.id})"><i class="ri-eye-line"></i> 预览</a>
+          <span class="action-separator">|</span>
           <a class="btn-link" onclick="navigate('#/template/edit/${t.id}')"><i class="ri-edit-line"></i> 编辑</a>
           <span class="action-separator">|</span>
-          <a class="btn-link danger" onclick="confirmDeleteTemplate(${t.id},'${t.name}')"><i class="ri-delete-bin-line"></i> 删除</a>
-          <span class="action-separator">|</span>
           <a class="btn-link" onclick="copyTemplate(${t.id})"><i class="ri-file-copy-line"></i> 复制</a>
+          <span class="action-separator">|</span>
+          <a class="btn-link danger" onclick="confirmDeleteTemplate(${t.id},'${t.name}')"><i class="ri-delete-bin-line"></i> 删除</a>
         </div>
       </td>
     </tr>
@@ -3620,13 +3894,25 @@ function renderTemplateList(container) {
 
   container.innerHTML = `
     <div class="breadcrumb">
-      <a href="#/template/list">客户回访</a>
+      <a href="#/segment/list">客户回访</a>
       <span class="sep">/</span>
       <span class="current">消息模板</span>
     </div>
     <div class="page-header">
       <h2>消息模板</h2>
       <button class="btn btn-primary" onclick="navigate('#/template/add')"><i class="ri-add-line"></i> 新增模板</button>
+    </div>
+    <div class="filter-card">
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>模板名称</label>
+          <div class="search-input-wrapper" style="width:240px">
+            <i class="ri-search-line search-icon"></i>
+            <input type="text" placeholder="搜索模板名称" onkeydown="if(event.key==='Enter')filterTemplateList(this.value)">
+            <i class="ri-close-line clear-icon" onclick="filterTemplateList('');this.previousElementSibling.value=''"></i>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="card">
       <div class="table-wrapper">
@@ -3719,7 +4005,7 @@ function renderTemplateForm(container, data) {
 
   container.innerHTML = `
     <div class="breadcrumb">
-      <a href="#/template/list">客户回访</a>
+      <a href="#/segment/list">客户回访</a>
       <span class="sep">/</span>
       <a href="#/template/list">消息模板</a>
       <span class="sep">/</span>
@@ -3743,19 +4029,27 @@ function renderTemplateForm(container, data) {
               <button class="toolbar-btn" title="加粗" onclick="execFormat('bold')"><i class="ri-bold"></i></button>
               <button class="toolbar-btn" title="斜体" onclick="execFormat('italic')"><i class="ri-italic"></i></button>
               <div class="separator"></div>
-            </div>
-            <div class="editor-area" id="template-editor" contenteditable="true" data-placeholder="请输入消息内容..." oninput="onEditorInput()">${content ? contentToEditorHtml(content) : ''}</div>
-            <div class="var-panel-inline" id="var-panel-inline">
-              <div class="var-panel-inline-title"><i class="ri-code-box-line"></i> 可选变量</div>
-              <div class="var-list-inline">
-                ${VARIABLES.map(v => `
-                  <div class="var-item-inline" onclick="insertVariable('${v.key}')">
-                    <span class="var-name">${v.name}</span>
-                    <span class="var-key">${v.key}</span>
+              <div style="position:relative">
+                <button class="toolbar-btn insert-var-btn" onclick="toggleVarPanel()" style="background:#e6f7ff;color:#1890ff;border:1px solid #91d5ff">
+                  <i class="ri-code-box-line"></i> 插入变量
+                </button>
+                <div class="var-panel" id="var-panel">
+                  <h4>选择变量</h4>
+                  <div class="var-list">
+                    ${VARIABLES.map(v => `
+                      <div class="var-item" onclick="insertVariable('${v.key}');toggleVarPanel()">
+                        <div>
+                          <span class="var-name">${v.name}</span>
+                          <span class="var-key">${v.key}</span>
+                        </div>
+                        <span style="font-size:12px;color:#999">${v.example || ''}</span>
+                      </div>
+                    `).join('')}
                   </div>
-                `).join('')}
+                </div>
               </div>
             </div>
+            <div class="editor-area" id="template-editor" contenteditable="true" data-placeholder="请输入消息内容..." oninput="onEditorInput()">${content ? contentToEditorHtml(content) : ''}</div>
             <div class="editor-footer">
               <span>支持插入变量</span>
               <span id="editor-char-count">0/2000</span>
@@ -3779,33 +4073,41 @@ function renderTemplateForm(container, data) {
           <span class="attachment-count" id="attachment-count">已添加 0/9 个附件</span>
         </div>
         <div class="attachment-list" id="attachment-list"></div>
-        <div class="attachment-type-inline" id="attachment-type-panel" style="display:none">
-          <div class="attachment-type-options">
-            <div class="attachment-type-option" onclick="addAttachment('image')">
-              <i class="ri-image-line" style="color:#1890ff"></i>
-              <div><div class="att-type-name">图片</div><div class="att-type-desc">JPG/PNG，≤10MB</div></div>
-            </div>
-            <div class="attachment-type-option" onclick="addAttachment('link')">
-              <i class="ri-link" style="color:#52c41a"></i>
-              <div><div class="att-type-name">图文链接</div><div class="att-type-desc">配置标题、描述、链接和封面图</div></div>
-            </div>
-            <div class="attachment-type-option" onclick="addAttachment('miniapp')">
-              <i class="ri-smartphone-line" style="color:#722ed1"></i>
-              <div><div class="att-type-name">小程序</div><div class="att-type-desc">配置小程序卡片</div></div>
-            </div>
-            <div class="attachment-type-option" onclick="addAttachment('video')">
-              <i class="ri-video-line" style="color:#fa8c16"></i>
-              <div><div class="att-type-name">视频</div><div class="att-type-desc">MP4，≤10MB</div></div>
-            </div>
-            <div class="attachment-type-option" onclick="addAttachment('file')">
-              <i class="ri-file-line" style="color:#999"></i>
-              <div><div class="att-type-name">文件</div><div class="att-type-desc">≤20MB，无格式限制</div></div>
-            </div>
-          </div>
-        </div>
         <button class="btn btn-dashed add-attachment-btn" id="add-attachment-btn" onclick="toggleAttachmentTypePanel()" style="width:100%;margin-top:8px;height:40px">
           <i class="ri-add-line"></i> 添加附件
         </button>
+      </div>
+
+      <div id="attachment-drawer-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);z-index:200" onclick="closeAttachmentDrawer()"></div>
+      <div id="attachment-drawer" style="position:fixed;top:0;right:0;bottom:0;width:520px;background:#fff;box-shadow:-2px 0 8px rgba(0,0,0,0.1);z-index:201;transform:translateX(100%);transition:transform 0.3s ease;display:flex;flex-direction:column">
+        <div style="padding:16px 24px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:16px;font-weight:500">添加附件</span>
+          <i class="ri-close-line" style="font-size:20px;cursor:pointer;color:#999" onclick="closeAttachmentDrawer()"></i>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:24px">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="attachment-type-option" onclick="addAttachment('image');closeAttachmentDrawer()" style="display:flex;align-items:center;gap:12px;padding:16px;border:1px solid #e8e8e8;border-radius:4px;cursor:pointer;transition:all 0.2s">
+              <i class="ri-image-line" style="font-size:28px;color:#1890ff"></i>
+              <div><div style="font-size:14px;font-weight:500;color:#333">图片</div><div style="font-size:12px;color:#999;margin-top:2px">JPG/PNG，≤10MB</div></div>
+            </div>
+            <div class="attachment-type-option" onclick="addAttachment('link');closeAttachmentDrawer()" style="display:flex;align-items:center;gap:12px;padding:16px;border:1px solid #e8e8e8;border-radius:4px;cursor:pointer;transition:all 0.2s">
+              <i class="ri-link" style="font-size:28px;color:#52c41a"></i>
+              <div><div style="font-size:14px;font-weight:500;color:#333">图文链接</div><div style="font-size:12px;color:#999;margin-top:2px">配置标题、描述、链接和封面图</div></div>
+            </div>
+            <div class="attachment-type-option" onclick="addAttachment('miniapp');closeAttachmentDrawer()" style="display:flex;align-items:center;gap:12px;padding:16px;border:1px solid #e8e8e8;border-radius:4px;cursor:pointer;transition:all 0.2s">
+              <i class="ri-smartphone-line" style="font-size:28px;color:#722ed1"></i>
+              <div><div style="font-size:14px;font-weight:500;color:#333">小程序</div><div style="font-size:12px;color:#999;margin-top:2px">配置小程序卡片</div></div>
+            </div>
+            <div class="attachment-type-option" onclick="addAttachment('video');closeAttachmentDrawer()" style="display:flex;align-items:center;gap:12px;padding:16px;border:1px solid #e8e8e8;border-radius:4px;cursor:pointer;transition:all 0.2s">
+              <i class="ri-video-line" style="font-size:28px;color:#fa8c16"></i>
+              <div><div style="font-size:14px;font-weight:500;color:#333">视频</div><div style="font-size:12px;color:#999;margin-top:2px">MP4，≤10MB</div></div>
+            </div>
+            <div class="attachment-type-option" onclick="addAttachment('file');closeAttachmentDrawer()" style="display:flex;align-items:center;gap:12px;padding:16px;border:1px solid #e8e8e8;border-radius:4px;cursor:pointer;transition:all 0.2s">
+              <i class="ri-file-line" style="font-size:28px;color:#999"></i>
+              <div><div style="font-size:14px;font-weight:500;color:#333">文件</div><div style="font-size:12px;color:#999;margin-top:2px">≤20MB，无格式限制</div></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="footer-actions" style="margin:0 -32px -24px;padding:16px 32px;border-top:1px solid var(--border-light);display:flex;justify-content:flex-end;gap:8px;border-radius:0 0 var(--radius) var(--radius)">
@@ -3959,13 +4261,17 @@ window.toggleAttachmentTypePanel = function() {
     showMessage('warning', '最多添加9个附件');
     return;
   }
-  const panel = document.getElementById('attachment-type-panel');
-  const btn = document.getElementById('add-attachment-btn');
-  const isHidden = panel.style.display === 'none';
-  panel.style.display = isHidden ? 'block' : 'none';
-  btn.innerHTML = isHidden
-    ? '<i class="ri-subtract-line"></i> 收起附件类型'
-    : '<i class="ri-add-line"></i> 添加附件';
+  const drawer = document.getElementById('attachment-drawer');
+  const overlay = document.getElementById('attachment-drawer-overlay');
+  drawer.style.transform = 'translateX(0)';
+  overlay.style.display = 'block';
+};
+
+window.closeAttachmentDrawer = function() {
+  const drawer = document.getElementById('attachment-drawer');
+  const overlay = document.getElementById('attachment-drawer-overlay');
+  drawer.style.transform = 'translateX(100%)';
+  overlay.style.display = 'none';
 };
 
 window.addAttachment = function(type) {
@@ -4068,7 +4374,7 @@ function getAttachmentIcon(type) {
   return map[type] || 'ri-attachment-line';
 }
 function getAttachmentLabel(type) {
-  const map = { image: '图片', miniprogram: '小程序', link: '链接', file: '文件', video: '视频' };
+  const map = { image: '图片', miniprogram: '小程序', link: '图文链接', file: '文件', video: '视频' };
   return map[type] || '附件';
 }
 
@@ -4635,7 +4941,7 @@ function onConfirmSendInput(value) {
 
 function confirmManualSend() {
   if (manualBroadcastState.confirmText !== '确认发送' || manualBroadcastState.sending) return;
-  
+
   manualBroadcastState.sending = true;
   const btn = document.getElementById('btn-confirm-send');
   if (btn) {
@@ -4643,30 +4949,25 @@ function confirmManualSend() {
     btn.style.opacity = '0.5';
     btn.textContent = '发送中...';
   }
-  
+
   // Simulate sending
   setTimeout(() => {
     manualBroadcastState.sending = false;
     const totalCustomers = manualBroadcastState.selectedSegments.reduce((sum, id) => sum + (Math.floor(Math.random() * 500) + 100), 0);
-    
+
     // Remove footer
     const footer = document.querySelector('.manual-broadcast-footer');
     if (footer) footer.remove();
-    
+
     showModal({
       width: 480,
-      closable: false,
-      content: `
-        <div class="success-modal">
-          <div class="success-icon"><i class="ri-checkbox-circle-line"></i></div>
-          <div class="success-title">发送成功</div>
-          <div class="success-desc">已成功创建群发任务，预计发送 ${totalCustomers.toLocaleString()} 条消息</div>
-          <div style="display:flex;gap:8px;justify-content:center">
-            <button class="btn btn-primary" onclick="closeModal();navigate('#/broadcast/event')">查看群发事件</button>
-            <button class="btn" onclick="closeModal();renderManualBroadcast(document.getElementById('page-content'))">继续群发</button>
-          </div>
-        </div>`,
-      footer: false
+      content: `<div style="text-align:center;padding:32px 0">
+        <i class="ri-checkbox-circle-line" style="font-size:72px;color:#52c41a"></i>
+        <h3 style="margin:16px 0 8px;font-size:18px;color:#333">发送成功</h3>
+        <p style="font-size:14px;color:#666">已成功创建群发任务，预计发送 ${totalCustomers} 条消息</p>
+      </div>`,
+      footer: `<button class="btn" onclick="closeModal();navigate('#/broadcast/event')">查看群发事件</button>
+        <button class="btn btn-primary" onclick="closeModal();navigate('#/broadcast/manual')">继续群发</button>`
     });
   }, 1500);
 }
@@ -4731,9 +5032,6 @@ function renderBroadcastRecordList(container) {
       <a href="#/broadcast/event">群发</a>
       <span class="sep">/</span>
       <span class="current">群发消息记录</span>
-    </div>
-    <div class="page-header">
-      <h2>群发消息记录</h2>
     </div>
     <div class="filter-card">
       <div class="filter-bar">
@@ -4848,10 +5146,25 @@ function toggleSelectAllRecords(checked) {
 function updateBatchActions() {
   const batchBar = document.getElementById('batch-actions');
   const countEl = document.getElementById('selected-count');
-  const selectedCount = store.broadcastRecords.filter(r => r.selected).length;
+  const selectedRecords = store.broadcastRecords.filter(r => r.selected);
+  const selectedCount = selectedRecords.length;
+  const hasFailed = selectedRecords.some(r => r.status === 'failed');
   if (selectedCount > 0) {
     batchBar.classList.add('show');
     countEl.textContent = selectedCount;
+    // Update batch resend button state
+    const resendBtn = batchBar.querySelector('.btn-primary');
+    if (resendBtn) {
+      if (!hasFailed) {
+        resendBtn.disabled = true;
+        resendBtn.style.opacity = '0.5';
+        resendBtn.style.cursor = 'not-allowed';
+      } else {
+        resendBtn.disabled = false;
+        resendBtn.style.opacity = '1';
+        resendBtn.style.cursor = 'pointer';
+      }
+    }
   } else {
     batchBar.classList.remove('show');
   }
