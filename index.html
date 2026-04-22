@@ -2961,7 +2961,7 @@ let strategySelectedSegments = [];
 
 function renderStrategyForm(container, data) {
   const isEdit = !!data;
-  strategyFormState = { name: '', description: '', strategyType: '', triggerMode: 'timed', triggerFrequency: '每天', triggerTime: '10:00', triggerEvent: 'add_wechat', conditionEnabled: false };
+  strategyFormState = { name: '', description: '', strategyType: '', triggerMode: 'timed', triggerFrequency: '每天', triggerTime: '10:00', triggerEvent: 'add_wechat', conditionEnabled: false, templateId: '', welcomeTemplateId: '' };
   strategyBranches = [];
   strategySelectedSegments = [];
 
@@ -2975,15 +2975,15 @@ function renderStrategyForm(container, data) {
     strategyFormState.triggerTime = data.triggerTime || '10:00';
     strategyFormState.triggerEvent = data.triggerEvent || 'add_wechat';
     strategyFormState.conditionEnabled = data.conditionEnabled || false;
+    strategyFormState.templateId = data.templateId || '';
+    strategyFormState.welcomeTemplateId = data.welcomeTemplateId || '';
     strategyBranches = data.branches ? JSON.parse(JSON.stringify(data.branches)) : [];
-    strategySelectedSegments = data.segmentNames ? [...data.segmentNames] : [];
+    strategySelectedSegments = data.segmentIds ? [...data.segmentIds] : (data.segmentNames ? data.segmentNames.map(n => {
+      const seg = store.segments.find(s => s.name === n);
+      return seg ? seg.id : null;
+    }).filter(Boolean) : []);
   }
 
-  const segmentOptions = store.segments.map(s =>
-    `<option value="${s.name}">${s.name}（${SEGMENT_CUSTOMER_COUNTS[s.name]||0}人）</option>`
-  ).join('');
-
-  const estimatedCount = strategySelectedSegments.reduce((sum, n) => sum + (SEGMENT_CUSTOMER_COUNTS[n]||0), 0);
   const strategyType = strategyFormState.strategyType;
   const isEditType = !!strategyType;
 
@@ -3013,19 +3013,7 @@ function renderStrategyForm(container, data) {
       </div>
     </div>
 
-    <!-- Area 2: Filter Conditions -->
-    <div class="strategy-form-card">
-      <div class="section-title"><i class="ri-filter-3-line"></i> 筛选条件</div>
-      <div class="form-item" style="margin-bottom:0">
-        <label class="form-item-label">选择加微记录分群</label>
-        <select id="strategy-segments" class="strategy-segment-select" multiple onchange="updateStrategySegmentEstimate()">
-          ${segmentOptions}
-        </select>
-        <div class="form-item-help" id="segment-estimate">筛选后的客户将作为策略的目标客户，已选分群预计匹配约 <strong>${estimatedCount}</strong> 位客户</div>
-      </div>
-    </div>
-
-    <!-- Area 3: Strategy Content -->
+    <!-- Area 2: Strategy Content -->
     <div class="strategy-form-card">
       <div class="section-title"><i class="ri-settings-3-line"></i> 策略内容</div>
 
@@ -3073,17 +3061,11 @@ function renderStrategyForm(container, data) {
       <button class="btn btn-primary" onclick="saveStrategy(${isEdit ? data.id : 'null'})">保存</button>
     </div>`;
 
-  // Restore segment selections after render
-  if (strategySelectedSegments.length > 0) {
-    setTimeout(() => {
-      const select = document.getElementById('strategy-segments');
-      if (select) {
-        Array.from(select.options).forEach(opt => {
-          if (strategySelectedSegments.includes(opt.value)) opt.selected = true;
-        });
-      }
-    }, 0);
-  }
+  // After render, trigger template previews if editing
+  setTimeout(() => {
+    if (strategyFormState.templateId) updateTemplatePreview(strategyFormState.templateId);
+    if (strategyFormState.welcomeTemplateId) updateWelcomeTemplatePreview(strategyFormState.welcomeTemplateId);
+  }, 100);
 }
 
 function selectStrategyType(type) {
@@ -3144,17 +3126,24 @@ function renderMassMessageFlow(data) {
       </div>`;
   }
 
-  // Build segment node content
+  // Build segment node content - interactive multi-select
   const segs = strategySelectedSegments;
   let segmentContent = '';
   if (segs.length > 0) {
-    segmentContent = `<div class="segment-tags">${segs.map(n => `<span class="tag">${n}</span>`).join('')}</div>`;
+    segmentContent = `<div class="segment-tags">${segs.map(id => {
+      const seg = store.segments.find(s => s.id === id);
+      return seg ? `<span class="tag">${seg.name}<i class="ri-close-line" style="margin-left:4px;cursor:pointer;font-size:12px" onclick="removeStrategySegment(${id})"></i></span>` : '';
+    }).join('')}</div>
+    <div style="margin-top:8px;font-size:13px;color:#333;font-weight:500">预计发送客户数：${getStrategySegmentEstimate()} 人</div>`;
   } else {
-    segmentContent = `<div class="empty-segment">请在上方筛选条件中选择分群</div>`;
+    segmentContent = `<div class="empty-segment">请选择目标分群</div>`;
   }
 
+  // Build execute node content with template selection
+  const templateOptions = store.templates.map(t => `<option value="${t.id}" ${strategyFormState.templateId==t.id?'selected':''}>${t.name}</option>`).join('');
+
   return `
-    <div class="strategy-flow">
+    <div id="strategy-flow-container" class="strategy-flow">
       <div class="flow-node flow-node-trigger">
         <div class="flow-node-header"><i class="ri-time-line"></i> 触发条件</div>
         <div class="node-content">${triggerContent}</div>
@@ -3162,14 +3151,34 @@ function renderMassMessageFlow(data) {
       <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
       <div class="flow-node flow-node-segment">
         <div class="flow-node-header"><i class="ri-group-line"></i> 筛选分群</div>
-        <div class="node-content">${segmentContent}</div>
+        <div class="node-content">
+          <div style="margin-bottom:8px">
+            <select multiple style="width:260px;height:auto;min-height:60px;border:1px solid #d9d9d9;border-radius:4px;padding:4px" onchange="handleStrategySegmentChange(this)">
+              ${store.segments.map(s => `<option value="${s.id}" ${strategySelectedSegments.includes(s.id)?'selected':''}>${s.name} (${SEGMENT_CUSTOMER_COUNTS[s.name]||0}人)</option>`).join('')}
+            </select>
+          </div>
+          <div class="segment-tags">
+            ${strategySelectedSegments.map(id => {
+              const seg = store.segments.find(s=>s.id===id);
+              return seg ? `<span class="tag">${seg.name}<i class="ri-close-line" style="margin-left:4px;cursor:pointer;font-size:12px" onclick="removeStrategySegment(${id})"></i></span>` : '';
+            }).join('')}
+          </div>
+          ${strategySelectedSegments.length > 0 ? `<div style="margin-top:8px;font-size:13px;color:#333;font-weight:500">预计发送客户数：${getStrategySegmentEstimate()} 人</div>` : '<div class="empty-segment">请选择目标分群</div>'}
+        </div>
       </div>
       <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
       <div class="flow-node flow-node-execute">
         <div class="flow-node-header"><i class="ri-play-circle-line"></i> 执行</div>
         <div class="node-content">
-          <div style="font-weight:500;color:#333">创建群发</div>
-          <div class="node-desc">对筛选出的客户创建群发任务</div>
+          <div style="margin-bottom:8px">
+            <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.templateId=this.value;updateTemplatePreview(this.value)">
+              <option value="">请选择消息模板</option>
+              ${templateOptions}
+            </select>
+          </div>
+          <div id="template-preview-card"></div>
+          <div style="font-weight:500;color:#333;margin-top:8px">创建群发</div>
+          <div class="node-desc">触发条件满足时，自动为筛选后的客户创建群发任务</div>
         </div>
       </div>
     </div>`;
@@ -3184,28 +3193,35 @@ function renderWelcomeMessageFlow(data) {
     branchHtml = renderBranchConfigArea();
   }
 
-  // Condition node
-  let conditionNode = '';
+  // Build execute node content based on condition branch state
+  let executeContent = '';
   if (condEnabled) {
-    conditionNode = `
-      <div class="flow-node flow-node-condition">
-        <div class="flow-node-header"><i class="ri-git-branch-line"></i> 条件分支</div>
-        <div class="node-content">
-          ${branchHtml}
+    executeContent = `
+      <div class="node-content">
+        <div style="font-weight:500;color:#333">发送欢迎语</div>
+        <div class="node-desc">各分支已连接独立的发送欢迎语节点，请分别配置模板</div>
+        <div style="margin-top:8px;padding:8px;background:#f0f2f5;border-radius:4px;font-size:12px;color:#666">
+          <i class="ri-information-line" style="color:#1890ff"></i> 根据条件分支配置
         </div>
       </div>`;
   } else {
-    conditionNode = `
-      <div class="flow-node flow-node-condition disabled">
-        <div class="flow-node-header"><i class="ri-git-branch-line"></i> 条件分支</div>
-        <div class="node-content">
-          <div class="node-desc">条件分支已禁用，将直接执行默认动作</div>
+    const welcomeTemplateOptions = store.templates.map(t => `<option value="${t.id}" ${strategyFormState.welcomeTemplateId==t.id?'selected':''}>${t.name}</option>`).join('');
+    executeContent = `
+      <div class="node-content">
+        <div style="margin-bottom:8px">
+          <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.welcomeTemplateId=this.value;updateWelcomeTemplatePreview(this.value)">
+            <option value="">请选择欢迎语模板</option>
+            ${welcomeTemplateOptions}
+          </select>
         </div>
+        <div id="welcome-template-preview-card"></div>
+        <div style="font-weight:500;color:#333;margin-top:8px">发送欢迎语</div>
+        <div class="node-desc">所有加微成功的客户将收到此欢迎语</div>
       </div>`;
   }
 
   return `
-    <div class="strategy-flow">
+    <div id="strategy-flow-container" class="strategy-flow">
       <div class="flow-node flow-node-welcome-trigger">
         <div class="flow-node-header"><i class="ri-flashlight-line"></i> 触发条件</div>
         <div class="node-content">
@@ -3231,10 +3247,7 @@ function renderWelcomeMessageFlow(data) {
       <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
       <div class="flow-node flow-node-execute">
         <div class="flow-node-header"><i class="ri-play-circle-line"></i> 执行</div>
-        <div class="node-content">
-          <div style="font-weight:500;color:#333">发送欢迎语</div>
-          <div class="node-desc">根据条件匹配结果发送对应欢迎语</div>
-        </div>
+        ${executeContent}
       </div>
       <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
       <div class="flow-node flow-node-end">
@@ -3318,21 +3331,19 @@ function switchFlowFreq(freq) {
 
 function toggleConditionBranch(enabled) {
   strategyFormState.conditionEnabled = enabled;
-  const content = document.getElementById('condition-branch-content');
   if (enabled) {
     // Ensure at least a default branch
     if (strategyBranches.length === 0) {
       strategyBranches.push({ conditionField: '', conditionValue: '', id: Date.now() });
     }
-    content.innerHTML = renderBranchConfigArea();
-  } else {
-    content.innerHTML = '<div class="node-desc">启用后可配置条件分支，不同条件执行不同群发动作</div>';
   }
+  // Re-render the entire flow so execute node updates correctly
+  const flowContainer = document.getElementById('strategy-flow-container');
+  if (flowContainer) flowContainer.innerHTML = renderWelcomeMessageFlow();
 }
 
 function renderBranchConfigArea() {
   const colors = ['#1890ff','#52c41a','#fa8c16','#f5222d','#722ed1','#13c2c2','#eb2f96','#faad14','#2f54eb','#a0d911'];
-  const templateOptions = store.templates.map(t => `<option value="${t.id}" ${t.id}>${t.name}</option>`).join('');
   let html = '<div class="branch-config-area">';
   strategyBranches.forEach((b, i) => {
     const color = colors[i % colors.length];
@@ -3341,6 +3352,7 @@ function renderBranchConfigArea() {
     html += `
       <div class="branch-card" style="border-left-color:${color}" id="branch-${i}">
         <div class="branch-card-header">
+          <i class="ri-draggable" style="color:#999;cursor:grab;margin-right:8px"></i>
           <span class="branch-label" style="background:${color}">分支 ${i + 1}${isDefault ? '（默认）' : ''}</span>
           ${isDefault ? '' : `<span class="branch-delete" onclick="removeBranch(${i})"><i class="ri-delete-bin-line"></i></span>`}
         </div>
@@ -3384,22 +3396,53 @@ function removeBranch(index) {
   content.innerHTML = renderBranchConfigArea();
 }
 
-function updateStrategySegmentEstimate() {
-  const select = document.getElementById('strategy-segments');
-  strategySelectedSegments = Array.from(select.selectedOptions).map(o => o.value);
-  const count = strategySelectedSegments.reduce((sum, n) => sum + (SEGMENT_CUSTOMER_COUNTS[n]||0), 0);
-  document.getElementById('segment-estimate').innerHTML = `已选分群预计匹配约 <strong>${count}</strong> 位客户`;
+window.handleStrategySegmentChange = function(selectEl) {
+  strategySelectedSegments = Array.from(selectEl.selectedOptions).map(o => parseInt(o.value));
+  // Re-render the flow to update tags and estimate
+  const flowContainer = document.getElementById('strategy-flow-container');
+  if (flowContainer) flowContainer.innerHTML = renderMassMessageFlow();
+};
 
-  // Also update segment display in flow if visible
-  const segNode = document.querySelector('.flow-node-segment .node-content');
-  if (segNode) {
-    if (strategySelectedSegments.length > 0) {
-      segNode.innerHTML = `<div class="segment-tags">${strategySelectedSegments.map(n => `<span class="tag">${n}</span>`).join('')}</div>`;
-    } else {
-      segNode.innerHTML = `<div class="empty-segment">请在上方筛选条件中选择分群</div>`;
-    }
-  }
-}
+window.removeStrategySegment = function(id) {
+  strategySelectedSegments = strategySelectedSegments.filter(sid => sid !== id);
+  const flowContainer = document.getElementById('strategy-flow-container');
+  if (flowContainer) flowContainer.innerHTML = renderMassMessageFlow();
+};
+
+window.getStrategySegmentEstimate = function() {
+  return strategySelectedSegments.reduce((sum, id) => {
+    const seg = store.segments.find(s => s.id === id);
+    return sum + (seg ? (SEGMENT_CUSTOMER_COUNTS[seg.name] || 0) : 0);
+  }, 0);
+};
+
+window.updateTemplatePreview = function(templateId) {
+  const previewEl = document.getElementById('template-preview-card');
+  if (!previewEl) return;
+  if (!templateId) { previewEl.innerHTML = ''; return; }
+  const tpl = store.templates.find(t => t.id == templateId);
+  if (!tpl) { previewEl.innerHTML = ''; return; }
+  const attachCount = tpl.attachments ? tpl.attachments.length : 0;
+  previewEl.innerHTML = `<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:4px;padding:8px 12px;margin-top:8px">
+    <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:4px">\u{1F4CE} ${tpl.name}</div>
+    <div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(tpl.content||'').substring(0,30)}...</div>
+    ${attachCount > 0 ? `<div style="margin-top:4px"><span style="background:#f0f2f5;color:#999;font-size:11px;padding:0 6px;border-radius:2px;line-height:18px;display:inline-block">附件: ${attachCount}个</span></div>` : ''}
+  </div>`;
+};
+
+window.updateWelcomeTemplatePreview = function(templateId) {
+  const previewEl = document.getElementById('welcome-template-preview-card');
+  if (!previewEl) return;
+  if (!templateId) { previewEl.innerHTML = ''; return; }
+  const tpl = store.templates.find(t => t.id == templateId);
+  if (!tpl) { previewEl.innerHTML = ''; return; }
+  const attachCount = tpl.attachments ? tpl.attachments.length : 0;
+  previewEl.innerHTML = `<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:4px;padding:8px 12px;margin-top:8px">
+    <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:4px">\u{1F4CE} ${tpl.name}</div>
+    <div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(tpl.content||'').substring(0,30)}...</div>
+    ${attachCount > 0 ? `<div style="margin-top:4px"><span style="background:#f0f2f5;color:#999;font-size:11px;padding:0 6px;border-radius:2px;line-height:18px;display:inline-block">附件: ${attachCount}个</span></div>` : ''}
+  </div>`;
+};
 
 function updateStrategyNameCount() {
   const input = document.getElementById('strategy-name');
@@ -3451,29 +3494,53 @@ function saveStrategy(editId) {
   const name = document.getElementById('strategy-name').value.trim();
   const description = document.getElementById('strategy-desc').value.trim();
 
-  // Validate segments
-  if (strategySelectedSegments.length === 0) {
-    showMessage('warning', '请选择至少一个分群');
-    return;
-  }
-
   // Validate strategy type
   if (!strategyFormState.strategyType) {
     showMessage('error', '请选择策略类型');
     return;
   }
 
-  // For mass_message, validate trigger config
+  // 群发策略校验
   if (strategyFormState.strategyType === 'mass_message') {
+    if (strategySelectedSegments.length === 0) {
+      showMessage('warning', '请选择至少一个分群');
+      return;
+    }
+    if (!strategyFormState.templateId) {
+      showMessage('warning', '请选择消息模板');
+      return;
+    }
+    // 触发条件校验
     const triggerMode = strategyFormState.triggerMode || 'timed';
     if (triggerMode === 'timed') {
       const freqEl = document.getElementById('flow-freq');
       const timeEl = document.getElementById('flow-time');
       if (freqEl) strategyFormState.triggerFrequency = freqEl.value;
       if (timeEl) strategyFormState.triggerTime = timeEl.value;
+      if (!strategyFormState.triggerTime) {
+        showMessage('warning', '请配置触发条件');
+        return;
+      }
     } else {
       const eventEl = document.getElementById('flow-event');
       if (eventEl) strategyFormState.triggerEvent = eventEl.value;
+    }
+  }
+
+  // 欢迎语策略校验
+  if (strategyFormState.strategyType === 'welcome_message') {
+    if (strategyFormState.conditionEnabled) {
+      // 检查每个分支是否配置了模板
+      const incomplete = strategyBranches.some(b => !b.templateId);
+      if (incomplete) {
+        showMessage('warning', '请完善条件分支配置，每个分支需选择欢迎语模板');
+        return;
+      }
+    } else {
+      if (!strategyFormState.welcomeTemplateId) {
+        showMessage('warning', '请选择欢迎语模板');
+        return;
+      }
     }
   }
 
@@ -3485,12 +3552,18 @@ function saveStrategy(editId) {
       s.name = name;
       s.description = description;
       s.actionType = strategyFormState.strategyType;
-      s.segmentNames = [...strategySelectedSegments];
+      s.segmentIds = [...strategySelectedSegments];
+      s.segmentNames = strategySelectedSegments.map(id => {
+        const seg = store.segments.find(s => s.id === id);
+        return seg ? seg.name : '';
+      }).filter(Boolean);
       s.triggerMode = strategyFormState.triggerMode;
       s.triggerFrequency = strategyFormState.triggerFrequency;
       s.triggerTime = strategyFormState.triggerTime;
       s.triggerEvent = strategyFormState.triggerEvent;
       s.conditionEnabled = strategyFormState.conditionEnabled;
+      s.templateId = strategyFormState.templateId;
+      s.welcomeTemplateId = strategyFormState.welcomeTemplateId;
       s.branches = JSON.parse(JSON.stringify(strategyBranches));
     }
     showMessage('success', '策略更新成功');
@@ -3503,12 +3576,18 @@ function saveStrategy(editId) {
       status: 'enabled',
       createdBy: '当前用户',
       createdAt: new Date().toISOString().slice(0,16).replace('T',' '),
-      segmentNames: [...strategySelectedSegments],
+      segmentIds: [...strategySelectedSegments],
+      segmentNames: strategySelectedSegments.map(id => {
+        const seg = store.segments.find(s => s.id === id);
+        return seg ? seg.name : '';
+      }).filter(Boolean),
       triggerMode: strategyFormState.triggerMode,
       triggerFrequency: strategyFormState.triggerFrequency,
       triggerTime: strategyFormState.triggerTime,
       triggerEvent: strategyFormState.triggerEvent,
       conditionEnabled: strategyFormState.conditionEnabled,
+      templateId: strategyFormState.templateId,
+      welcomeTemplateId: strategyFormState.welcomeTemplateId,
       branches: JSON.parse(JSON.stringify(strategyBranches))
     });
     showMessage('success', '策略创建成功');
@@ -4801,244 +4880,6 @@ function doBatchResend() {
   renderBroadcastRecordList(document.getElementById('page-content'));
 }
 
-// ===== Welcome Manage =====
-let welcomeConfigState = {};
-
-function renderWelcomeManage(container) {
-  const config = store.welcomeConfig;
-  welcomeConfigState = { ...config };
-  
-  const employeesHtml = store.employees.map(emp => `
-    <div class="employee-item ${config.selectedEmployees.includes(emp)?'selected':''}" onclick="toggleEmployee('${emp}')">
-      <label class="checkbox-wrapper">
-        <input type="checkbox" ${config.selectedEmployees.includes(emp)?'checked':''}>
-        <span class="checkbox"><i class="ri-check-line"></i></span>
-      </label>
-      <span>${emp}</span>
-    </div>
-  `).join('');
-
-  container.innerHTML = `
-    <div class="breadcrumb">
-      <a href="#/segment/list">客户回访</a>
-      <span class="sep">/</span>
-      <a href="#/broadcast/event">群发</a>
-      <span class="sep">/</span>
-      <span class="current">欢迎语管理</span>
-    </div>
-    <div class="page-header">
-      <h2>欢迎语管理</h2>
-      <button class="btn" onclick="navigate('#/welcome/record')"><i class="ri-history-line"></i> 查看发送记录</button>
-    </div>
-    
-    <div class="welcome-config-card">
-      <div class="config-item">
-        <div class="config-label">欢迎语开关</div>
-        <div class="config-content">
-          <label class="switch">
-            <input type="checkbox" id="welcome-enabled" ${config.enabled?'checked':''} onchange="welcomeConfigState.enabled=this.checked">
-            <span class="slider"></span>
-          </label>
-          <span style="margin-left:12px;color:var(--text-secondary);font-size:13px">
-            ${config.enabled ? '已开启，新客户加微后将自动发送欢迎语' : '已关闭，新客户加微后不会发送欢迎语'}
-          </span>
-        </div>
-      </div>
-    </div>
-    
-    <div class="welcome-config-card">
-      <div class="config-item">
-        <div class="config-label">消息类型</div>
-        <div class="config-content">
-          <div class="msg-type-selector" id="msg-type-selector">
-            <div class="msg-type-item ${config.messageType==='text'?'active':''}" onclick="selectMsgType('text')">
-              <i class="ri-file-text-line"></i>
-              <p>文本</p>
-            </div>
-            <div class="msg-type-item ${config.messageType==='image_text'?'active':''}" onclick="selectMsgType('image_text')">
-              <i class="ri-image-line"></i>
-              <p>图片+文本</p>
-            </div>
-            <div class="msg-type-item ${config.messageType==='mini_program'?'active':''}" onclick="selectMsgType('mini_program')">
-              <i class="ri-mini-program-line"></i>
-              <p>小程序卡片</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="config-item">
-        <div class="config-label">消息内容</div>
-        <div class="config-content">
-          <div class="editor-container">
-            <div class="editor-left">
-              <div class="editor-toolbar">
-                <button class="toolbar-btn" title="加粗" onclick="execFormat('bold')"><i class="ri-bold"></i></button>
-                <button class="toolbar-btn" title="斜体" onclick="execFormat('italic')"><i class="ri-italic"></i></button>
-                <div class="separator"></div>
-                <div style="position:relative">
-                  <button class="insert-var-btn" onclick="toggleWelcomeVarPanel()"><i class="ri-code-box-line"></i> 插入变量</button>
-                  <div class="var-panel" id="welcome-var-panel">
-                    <h4>选择变量</h4>
-                    <div class="var-list">
-                      ${VARIABLES.map(v => `
-                        <div class="var-item" onclick="insertWelcomeVariable('${v.key}')">
-                          <span class="var-name">${v.name}</span>
-                          <span class="var-key">${v.key}</span>
-                        </div>
-                      `).join('')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="editor-area" id="welcome-editor" contenteditable="true" data-placeholder="请输入欢迎语内容..." oninput="onWelcomeEditorInput()">${config.content ? contentToEditorHtml(config.content) : ''}</div>
-              <div class="editor-footer">
-                <span>支持插入变量</span>
-                <span id="welcome-char-count">${config.content.length}/2000</span>
-              </div>
-            </div>
-            <div class="editor-right">
-              <div class="preview-area" style="display:flex;justify-content:center">
-                <div class="phone-preview">
-                  <div class="phone-header">微信</div>
-                  <div class="phone-content">
-                    <div id="welcome-preview">
-                      ${renderWelcomePreview(config.content)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="welcome-config-card">
-      <div class="config-item">
-        <div class="config-label">发送时机</div>
-        <div class="config-content">
-          <select id="send-delay" style="width:200px" onchange="welcomeConfigState.sendDelay=this.value">
-            <option value="immediate" ${config.sendDelay==='immediate'?'selected':''}>立即发送</option>
-            <option value="delay_5" ${config.sendDelay==='delay_5'?'selected':''}>延迟5秒</option>
-            <option value="delay_10" ${config.sendDelay==='delay_10'?'selected':''}>延迟10秒</option>
-            <option value="delay_30" ${config.sendDelay==='delay_30'?'selected':''}>延迟30秒</option>
-          </select>
-          <div class="config-help">设置客户加微成功后发送欢迎语的时间延迟</div>
-        </div>
-      </div>
-      
-      <div class="config-item">
-        <div class="config-label">适用范围</div>
-        <div class="config-content">
-          <div class="employee-selector">
-            ${employeesHtml}
-          </div>
-          <div class="config-help">选择哪些员工加微客户时发送欢迎语</div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="welcome-config-card" style="padding:0">
-      <div class="footer-actions">
-        <button class="btn" onclick="resetWelcomeConfig()">重置</button>
-        <button class="btn btn-primary" onclick="saveWelcomeConfig()">保存配置</button>
-      </div>
-    </div>`;
-}
-
-function selectMsgType(type) {
-  welcomeConfigState.messageType = type;
-  document.querySelectorAll('#msg-type-selector .msg-type-item').forEach(item => {
-    item.classList.remove('active');
-  });
-  event.currentTarget.classList.add('active');
-}
-
-function toggleWelcomeVarPanel() {
-  const panel = document.getElementById('welcome-var-panel');
-  panel.classList.toggle('show');
-}
-
-function insertWelcomeVariable(key) {
-  const editor = document.getElementById('welcome-editor');
-  editor.focus();
-  const tag = document.createElement('span');
-  tag.className = 'var-tag';
-  tag.contentEditable = 'false';
-  tag.dataset.var = key;
-  tag.innerHTML = `${key}<span class="remove-var" onclick="removeVarTag(this,event)">&times;</span>`;
-  
-  const selection = window.getSelection();
-  if (selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    if (editor.contains(range.commonAncestorContainer)) {
-      range.insertNode(tag);
-      range.setStartAfter(tag);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    } else {
-      editor.appendChild(tag);
-    }
-  } else {
-    editor.appendChild(tag);
-  }
-  
-  document.getElementById('welcome-var-panel').classList.remove('show');
-  onWelcomeEditorInput();
-}
-
-function onWelcomeEditorInput() {
-  const editor = document.getElementById('welcome-editor');
-  const content = getEditorContent();
-  const charCount = document.getElementById('welcome-char-count');
-  charCount.textContent = `${content.length}/2000`;
-  charCount.classList.toggle('over', content.length >= 2000);
-  welcomeConfigState.content = content;
-  
-  const preview = document.getElementById('welcome-preview');
-  preview.innerHTML = renderWelcomePreview(content);
-}
-
-function renderWelcomePreview(content) {
-  if (!content.trim()) {
-    return '<div class="chat-bubble" style="color:var(--text-tertiary)">编辑内容后实时预览</div>';
-  }
-  let html = content;
-  VARIABLES.forEach(v => {
-    html = html.replace(new RegExp(v.key.replace(/[{}]/g, '\\$&'), 'g'), `<span style="color:var(--warning)">${v.example}</span>`);
-  });
-  return `<div class="chat-bubble">${html}</div>`;
-}
-
-function toggleEmployee(emp) {
-  const idx = welcomeConfigState.selectedEmployees.indexOf(emp);
-  if (idx > -1) {
-    welcomeConfigState.selectedEmployees.splice(idx, 1);
-  } else {
-    welcomeConfigState.selectedEmployees.push(emp);
-  }
-  renderWelcomeManage(document.getElementById('page-content'));
-}
-
-function resetWelcomeConfig() {
-  store.welcomeConfig = {
-    enabled: true,
-    messageType: 'text',
-    content: '尊敬的{{客户姓名}}，您好！欢迎关注我们，如有任何问题请随时联系。',
-    sendDelay: 'immediate',
-    selectedEmployees: ['李医生', '王护士', '赵医生']
-  };
-  showMessage('success', '已重置为默认配置');
-  renderWelcomeManage(document.getElementById('page-content'));
-}
-
-function saveWelcomeConfig() {
-  store.welcomeConfig = { ...welcomeConfigState };
-  showMessage('success', '保存成功');
-}
-
 // ===== Welcome Record =====
 let welcomeRecordFilter = { status: 'all', strategy: '', keyword: '' };
 
@@ -5320,12 +5161,6 @@ document.addEventListener('click', e => {
   if (panel && panel.classList.contains('show')) {
     if (!e.target.closest('.insert-var-btn') && !e.target.closest('.var-panel')) {
       panel.classList.remove('show');
-    }
-  }
-  const welcomePanel = document.getElementById('welcome-var-panel');
-  if (welcomePanel && welcomePanel.classList.contains('show')) {
-    if (!e.target.closest('.insert-var-btn') && !e.target.closest('.var-panel')) {
-      welcomePanel.classList.remove('show');
     }
   }
 });
