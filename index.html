@@ -1876,7 +1876,6 @@ function renderSegmentList(container) {
       <td><a class="link" href="#/segment/detail/${s.id}">${s.name}</a></td>
       <td><span class="text-ellipsis" title="${s.description}">${s.description}</span></td>
       <td>${s.ruleCount}个条件</td>
-      <td style="text-align:center">${SEGMENT_CUSTOMER_COUNTS[s.name] ? SEGMENT_CUSTOMER_COUNTS[s.name].toLocaleString() : '-'}</td>
       <td>${s.creator}</td>
       <td>${s.createTime}</td>
       <td><span class="tag ${s.updateMethod==='scheduled'?'tag-blue':'tag-gray'}" style="${s.updateMethod==='manual'?'color:#999;background:#f0f2f5;border-color:#d9d9d9':''}">${s.updateMethod==='scheduled'?'定时更新':'手动更新'}</span></td>
@@ -1885,7 +1884,7 @@ function renderSegmentList(container) {
         <div class="actions">
           <a class="btn-link" onclick="navigate('#/segment/edit/${s.id}')"><i class="ri-edit-line"></i> 编辑</a>
           <span class="action-separator">|</span>
-          <a class="btn-link" onclick="showMessage('info','打开企微标签配置：${s.name}')"><i class="ri-price-tag-3-line"></i> 更新企微标签</a>
+          <a class="btn-link" onclick="showUpdateWechatTagModal(${s.id},'${s.name}')"><i class="ri-price-tag-3-line"></i> 更新企微标签</a>
           <span class="action-separator">|</span>
           <a class="btn-link danger" onclick="confirmDeleteSegment(${s.id},'${s.name}')"><i class="ri-delete-bin-line"></i> 删除</a>
         </div>
@@ -1913,14 +1912,6 @@ function renderSegmentList(container) {
             <i class="ri-close-line clear-icon" id="seg-search-clear" onclick="clearSegSearch()"></i>
           </div>
         </div>
-        <div class="filter-item">
-          <label>更新方式</label>
-          <div class="filter-tags">
-            <span class="filter-tag active" onclick="filterSegmentUpdateMethod('all',this)">全部</span>
-            <span class="filter-tag" onclick="filterSegmentUpdateMethod('manual',this)">手动更新</span>
-            <span class="filter-tag" onclick="filterSegmentUpdateMethod('scheduled',this)">定时更新</span>
-          </div>
-        </div>
       </div>
     </div>
     <div class="card">
@@ -1928,7 +1919,7 @@ function renderSegmentList(container) {
         <table>
           <thead>
             <tr>
-              <th>分群名称</th><th>描述</th><th>规则</th><th style="text-align:center">匹配客户数</th><th>创建人</th><th>创建时间</th><th>更新方式</th><th>企微标签</th><th>操作</th>
+              <th>分群名称</th><th>描述</th><th>规则</th><th>创建人</th><th>创建时间</th><th>更新方式</th><th>企微标签</th><th>操作</th>
             </tr>
           </thead>
           <tbody id="seg-list-tbody">${tableRows}</tbody>
@@ -1939,38 +1930,36 @@ function renderSegmentList(container) {
         <span class="page-btn disabled"><i class="ri-arrow-left-s-line"></i></span>
         <span class="page-btn active">1</span>
         <span class="page-btn disabled"><i class="ri-arrow-right-s-line"></i></span>
+        <div class="pagination-size">
+          每页
+          <select id="seg-page-size" onchange="handleSegPageSizeChange(this.value)" style="width:60px;height:28px;border:1px solid var(--border);border-radius:var(--radius);padding:0 4px;font-size:12px;margin:0 4px">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          条
+        </div>
       </div>
     </div>`;
 }
-
-window._segUpdateMethodFilter = 'all';
-window.filterSegmentUpdateMethod = function(method, el) {
-  window._segUpdateMethodFilter = method;
-  el.parentElement.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  handleSegSearch(document.getElementById('seg-search-input').value);
-};
 
 window.handleSegSearch = function(keyword) {
   const clearIcon = document.getElementById('seg-search-clear');
   clearIcon.classList.toggle('show', keyword.length > 0);
   const kw = keyword.trim().toLowerCase();
   let filtered = kw ? store.segments.filter(s => s.name.toLowerCase().includes(kw)) : store.segments;
-  if (window._segUpdateMethodFilter !== 'all') {
-    filtered = filtered.filter(s => s.updateMethod === window._segUpdateMethodFilter);
-  }
   const tbody = document.getElementById('seg-list-tbody');
   const totalEl = document.getElementById('seg-list-total');
   if (!tbody) return;
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px 0;color:var(--text-tertiary)">暂无匹配的分群</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:60px 0"><div style="color:var(--text-tertiary);font-size:14px;margin-bottom:8px">暂无分群数据</div><div style="color:#ccc;font-size:13px">点击上方按钮创建第一个分群</div></td></tr>';
   } else {
     tbody.innerHTML = filtered.map(s => `
       <tr>
         <td><a class="link" href="#/segment/detail/${s.id}">${s.name}</a></td>
         <td><span class="text-ellipsis" title="${s.description}">${s.description}</span></td>
         <td>${s.ruleCount}个条件</td>
-        <td style="text-align:center">${SEGMENT_CUSTOMER_COUNTS[s.name] ? SEGMENT_CUSTOMER_COUNTS[s.name].toLocaleString() : '-'}</td>
         <td>${s.creator}</td>
         <td>${s.createTime}</td>
         <td><span class="tag ${s.updateMethod==='scheduled'?'tag-blue':'tag-gray'}" style="${s.updateMethod==='manual'?'color:#999;background:#f0f2f5;border-color:#d9d9d9':''}">${s.updateMethod==='scheduled'?'定时更新':'手动更新'}</span></td>
@@ -1979,7 +1968,7 @@ window.handleSegSearch = function(keyword) {
           <div class="actions">
             <a class="btn-link" onclick="navigate('#/segment/edit/${s.id}')"><i class="ri-edit-line"></i> 编辑</a>
             <span class="action-separator">|</span>
-            <a class="btn-link" onclick="showMessage('info','打开企微标签配置：${s.name}')"><i class="ri-price-tag-3-line"></i> 更新企微标签</a>
+            <a class="btn-link" onclick="showUpdateWechatTagModal(${s.id},'${s.name}')"><i class="ri-price-tag-3-line"></i> 更新企微标签</a>
             <span class="action-separator">|</span>
             <a class="btn-link danger" onclick="confirmDeleteSegment(${s.id},'${s.name}')"><i class="ri-delete-bin-line"></i> 删除</a>
           </div>
@@ -1997,13 +1986,47 @@ window.clearSegSearch = function() {
   input.focus();
 };
 
+window.handleSegPageSizeChange = function(size) {
+  showMessage('info', '切换每页 ' + size + ' 条');
+};
+
+function showUpdateWechatTagModal(id, name) {
+  const customerCount = Math.floor(Math.random() * 2000) + 500;
+  showModal({
+    width: 416,
+    title: '更新企微标签',
+    content: `
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:16px">
+        <i class="ri-error-warning-line" style="color:#fa8c16;font-size:16px;margin-top:2px;flex-shrink:0"></i>
+        <div style="font-size:14px;color:#333">确定要更新分群<span style="color:#1890ff;font-weight:500">"${name}"</span>的企微标签吗？</div>
+      </div>
+      <div style="background:#fafafa;border-radius:4px;padding:12px 16px;margin-bottom:12px">
+        <div style="font-size:13px;color:#666;margin-bottom:8px;font-weight:500">更新说明：</div>
+        <div style="font-size:13px;color:#666;line-height:22px">
+          <div>· 系统将根据当前分群规则重新计算匹配的客户列表</div>
+          <div>· 匹配的客户将被自动打上/更新企微标签</div>
+          <div>· 不再匹配的客户将被移除企微标签</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#1890ff;font-weight:500">预计影响客户数：约 ${customerCount.toLocaleString()} 人</div>`,
+    footer: `
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="doUpdateWechatTag(${id},'${name}')">确定更新</button>`
+  });
+}
+
+window.doUpdateWechatTag = function(id, name) {
+  closeModal();
+  showMessage('success', '企微标签更新成功，已更新 1,234 位客户的标签');
+};
+
 function confirmDeleteSegment(id, name) {
   showModal({
     width: 420,
-    title: '确认删除',
+    title: '删除确认',
     content: `
       <div class="confirm-icon"><i class="ri-error-warning-line"></i></div>
-      <div class="confirm-body">确定要删除分群<span class="highlight">'${name}'</span>吗？删除后该分群下的所有规则配置将被清除，且不可恢复。</div>`,
+      <div class="confirm-body">确定要删除分群<span class="highlight">'${name}'</span>吗？<br><span style="font-size:13px;color:#999">删除后该分群下的所有规则配置将被清除，且不可恢复。</span></div>`,
     footer: `
       <button class="btn" onclick="closeModal()">取消</button>
       <button class="btn btn-danger" onclick="deleteSegment(${id})">确定删除</button>`
