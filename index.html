@@ -3123,18 +3123,34 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('.action-more')) closeStrategyMore();
 });
 
-// ===== Strategy Form =====
+// ===== Strategy Form (Canvas Workflow) =====
 let strategyFormState = {};
 let strategyBranches = [];
 let strategySelectedSegments = [];
+let canvasNodes = [];
+let canvasEdges = [];
+let canvasZoom = 1;
+let canvasPanX = 0, canvasPanY = 0;
+let selectedNodeId = null;
+let contextMenuNodeId = null;
+let _canvasDragging = null; // { nodeId, startX, startY, origX, origY }
+let _canvasPanning = null; // { startX, startY, origPanX, origPanY }
+let _strategyEditId = null;
 
 function renderStrategyForm(container, data) {
   const isEdit = !!data;
+  _strategyEditId = isEdit ? data.id : null;
   strategyFormState = { name: '', description: '', strategyType: '', triggerMode: 'timed', triggerFrequency: '每天', triggerTime: '10:00', triggerEvent: 'add_wechat', conditionEnabled: false, templateId: '', welcomeTemplateId: '' };
   strategyBranches = [];
   strategySelectedSegments = [];
+  canvasNodes = [];
+  canvasEdges = [];
+  canvasZoom = 1;
+  canvasPanX = 0;
+  canvasPanY = 0;
+  selectedNodeId = null;
+  contextMenuNodeId = null;
 
-  // Pre-fill from edit data
   if (data) {
     strategyFormState.name = data.name || '';
     strategyFormState.description = data.description || '';
@@ -3147,657 +3163,852 @@ function renderStrategyForm(container, data) {
     strategyFormState.templateId = data.templateId || '';
     strategyFormState.welcomeTemplateId = data.welcomeTemplateId || '';
     strategyBranches = data.branches ? JSON.parse(JSON.stringify(data.branches)) : [];
-    strategySelectedSegments = data.segmentIds ? [...data.segmentIds] : (data.segmentNames ? data.segmentNames.map(n => {
-      const seg = store.segments.find(s => s.name === n);
+    strategySelectedSegments = data.segmentIds ? [...data.segmentIds] : (data.segmentNames ? data.segmentNames.map(function(n) {
+      var seg = store.segments.find(function(s) { return s.name === n; });
       return seg ? seg.id : null;
     }).filter(Boolean) : []);
+    if (data.canvasNodes) { canvasNodes = JSON.parse(JSON.stringify(data.canvasNodes)); }
+    if (data.canvasEdges) { canvasEdges = JSON.parse(JSON.stringify(data.canvasEdges)); }
   }
 
-  const strategyType = strategyFormState.strategyType;
-  const isEditType = !!strategyType;
+  container.innerHTML = '<div class="strategy-canvas-page" id="strategy-canvas-page">' +
+    '<div class="strategy-top-bar">' +
+      '<input type="text" class="top-bar-name" id="strategy-name" value="' + strategyFormState.name.replace(/"/g, '&quot;') + '" maxlength="50" placeholder="请输入策略名称" oninput="updateStrategyNameCount()" onblur="validateStrategyName()">' +
+      '<span class="top-bar-desc" id="strategy-desc-display">' + (strategyFormState.description || '添加策略描述...') + '</span>' +
+      '<div class="top-bar-actions">' +
+        '<button class="btn" onclick="navigate(\'#/strategy/list\')">取消</button>' +
+        '<button class="btn btn-primary" onclick="saveStrategy(_strategyEditId)">保存</button>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;flex:1;overflow:hidden">' +
+      '<div class="strategy-left-panel" id="strategy-left-panel">' +
+        '<div class="panel-header"><i class="ri-settings-3-line"></i> 策略配置</div>' +
+        '<div class="panel-content">' +
+          '<div class="panel-section-title">策略类型</div>' +
+          '<div class="strategy-type-radio-group" id="strategy-type-radio-group">' +
+            '<div class="strategy-type-radio ' + (strategyFormState.strategyType === 'mass_message' ? 'active' : '') + '" onclick="selectStrategyType(\'mass_message\')">' +
+              '<i class="ri-mail-send-line" style="color:#6366f1"></i> 群发策略' +
+            '</div>' +
+            '<div class="strategy-type-radio ' + (strategyFormState.strategyType === 'welcome_message' ? 'active' : '') + '" onclick="selectStrategyType(\'welcome_message\')">' +
+              '<i class="ri-chat-smile-2-line" style="color:#f97316"></i> 欢迎语策略' +
+            '</div>' +
+          '</div>' +
+          '<div class="panel-section-title">可用节点</div>' +
+          '<div class="node-panel-list" id="node-panel-list"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="strategy-canvas-area" id="strategy-canvas-area">' +
+        '<div class="canvas-edges-layer" id="canvas-edges-layer"><svg id="canvas-svg"></svg></div>' +
+        '<div class="canvas-nodes-layer" id="canvas-nodes-layer"></div>' +
+        '<div class="canvas-toolbar" id="canvas-toolbar">' +
+          '<button onclick="canvasZoomIn()" title="放大"><i class="ri-zoom-in-line"></i></button>' +
+          '<span class="zoom-label" id="zoom-label">100%</span>' +
+          '<button onclick="canvasZoomOut()" title="缩小"><i class="ri-zoom-out-line"></i></button>' +
+          '<div class="toolbar-sep"></div>' +
+          '<button onclick="canvasFitView()" title="适应画布"><i class="ri-focus-3-line"></i></button>' +
+          '<button onclick="canvasResetView()" title="重置视图"><i class="ri-refresh-line"></i></button>' +
+        '</div>' +
+        '<div id="canvas-validation-bar" class="canvas-validation-bar" style="display:none"></div>' +
+      '</div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="node-context-menu" id="node-context-menu">' +
+    '<div class="ncm-item" onclick="duplicateCanvasNode()"><i class="ri-file-copy-line"></i> 复制节点</div>' +
+    '<div class="ncm-item danger" onclick="deleteCanvasNode(contextMenuNodeId)"><i class="ri-delete-bin-line"></i> 删除节点</div>' +
+  '</div>';
 
-  container.innerHTML = `
-    <div class="breadcrumb">
-      <a href="#/segment/list">客户回访</a>
-      <span class="sep">/</span>
-      <a href="#/strategy/list">策略</a>
-      <span class="sep">/</span>
-      <span class="current">${isEdit ? '编辑策略' : '新增策略'}</span>
-    </div>
-    <div class="page-header"><h2>${isEdit ? '编辑策略' : '新增策略'}</h2></div>
+  // Setup canvas interactions
+  setupCanvasInteractions();
 
-    <!-- Area 1: Basic Info -->
-    <div class="strategy-form-card">
-      <div class="section-title"><i class="ri-information-line"></i> 基本信息</div>
-      <div class="form-item">
-        <label class="form-item-label"><span class="required">*</span> 策略名称</label>
-        <input type="text" id="strategy-name" value="${strategyFormState.name}" maxlength="50" placeholder="请输入策略名称" oninput="updateStrategyNameCount()" onblur="validateStrategyName()">
-        <div class="char-count" id="strategy-name-count">${strategyFormState.name.length}/50</div>
-        <div class="form-item-error hidden" id="strategy-name-error"></div>
-      </div>
-      <div class="form-item" style="margin-bottom:0">
-        <label class="form-item-label">策略描述</label>
-        <textarea id="strategy-desc" class="strategy-desc-textarea" maxlength="200" rows="3" placeholder="请输入策略描述" oninput="updateStrategyDescCount()">${strategyFormState.description}</textarea>
-        <div class="char-count" id="strategy-desc-count">${strategyFormState.description.length}/200</div>
-      </div>
-    </div>
-
-    <!-- Area 2: Strategy Content -->
-    <div class="strategy-form-card">
-      <div class="section-title"><i class="ri-settings-3-line"></i> 策略内容</div>
-
-      <div class="form-item">
-        <label class="form-item-label"><span class="required">*</span> 策略类型</label>
-        <div class="strategy-type-group" id="strategy-type-group">
-          <div class="strategy-type-btn ${strategyType==='mass_message'?'active':''} ${isEditType && strategyType!=='mass_message'?'disabled':''}" onclick="${isEditType?'':'selectStrategyType(\'mass_message\')'}">
-            <i class="ri-mail-send-line" style="margin-right:4px"></i> 群发策略
-          </div>
-          <div class="strategy-type-btn ${strategyType==='welcome_message'?'active':''} ${isEditType && strategyType!=='welcome_message'?'disabled':''}" onclick="${isEditType?'':'selectStrategyType(\'welcome_message\')'}">
-            <i class="ri-chat-smile-2-line" style="margin-right:4px"></i> 欢迎语策略
-          </div>
-        </div>
-      </div>
-
-      <!-- Type description cards (shown when no type selected) -->
-      <div id="strategy-type-desc" class="${strategyType?'hidden':''}">
-        <div class="strategy-type-desc">
-          <div class="strategy-type-desc-card" onclick="selectStrategyType('mass_message')" style="cursor:pointer">
-            <i class="ri-mail-send-line" style="color:#1890ff"></i>
-            <div>
-              <div class="desc-title">群发策略</div>
-              <div class="desc-text">通过定时或事件触发，对选定的客户分群批量发送消息，适合营销推广和客户回访场景。</div>
-            </div>
-          </div>
-          <div class="strategy-type-desc-card" onclick="selectStrategyType('welcome_message')" style="cursor:pointer">
-            <i class="ri-chat-smile-2-line" style="color:#52c41a"></i>
-            <div>
-              <div class="desc-title">欢迎语策略</div>
-              <div class="desc-text">客户加微成功后自动触发，支持条件分支配置不同欢迎语，适合新客户引导场景。</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Flow diagram area -->
-      <div id="strategy-flow-area" class="${strategyType?'':'hidden'}">
-        ${strategyType ? renderStrategyFlow(strategyType, data) : ''}
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="strategy-form-footer">
-      <button class="btn" onclick="navigate('#/strategy/list')">取消</button>
-      <button class="btn btn-primary" onclick="saveStrategy(${isEdit ? data.id : 'null'})">保存</button>
-    </div>`;
-
-  // After render, trigger template previews if editing
-  setTimeout(() => {
-    if (strategyFormState.templateId) updateTemplatePreview(strategyFormState.templateId);
-    if (strategyFormState.welcomeTemplateId) updateWelcomeTemplatePreview(strategyFormState.welcomeTemplateId);
-  }, 100);
+  // If type already selected, init canvas nodes
+  if (strategyFormState.strategyType) {
+    if (canvasNodes.length === 0) {
+      initCanvasDefaultNodes(strategyFormState.strategyType);
+    }
+    renderNodePanelList();
+    renderCanvas();
+  } else {
+    renderNodePanelList();
+  }
 }
 
 function selectStrategyType(type) {
   strategyFormState.strategyType = type;
-  // Update type buttons
-  const group = document.getElementById('strategy-type-group');
-  group.querySelectorAll('.strategy-type-btn').forEach(b => {
-    b.classList.remove('active');
-    b.classList.add('disabled');
-  });
-  const idx = type === 'mass_message' ? 0 : 1;
-  group.querySelectorAll('.strategy-type-btn')[idx].classList.add('active');
-  group.querySelectorAll('.strategy-type-btn')[idx].classList.remove('disabled');
-
-  // Hide description cards
-  document.getElementById('strategy-type-desc').classList.add('hidden');
-
-  // Show and render flow
-  const flowArea = document.getElementById('strategy-flow-area');
-  flowArea.classList.remove('hidden');
-  flowArea.innerHTML = renderStrategyFlow(type, null);
+  // Update radio buttons
+  var group = document.getElementById('strategy-type-radio-group');
+  if (group) {
+    group.querySelectorAll('.strategy-type-radio').forEach(function(b) { b.classList.remove('active'); });
+    var idx = type === 'mass_message' ? 0 : 1;
+    group.querySelectorAll('.strategy-type-radio')[idx].classList.add('active');
+  }
+  // Reset canvas
+  canvasNodes = [];
+  canvasEdges = [];
+  canvasZoom = 1;
+  canvasPanX = 0;
+  canvasPanY = 0;
+  selectedNodeId = null;
+  initCanvasDefaultNodes(type);
+  renderNodePanelList();
+  renderCanvas();
 }
 
-function renderStrategyFlow(type, data) {
+function renderNodePanelList() {
+  var list = document.getElementById('node-panel-list');
+  if (!list) return;
+  var type = strategyFormState.strategyType;
+  var html = '';
   if (type === 'mass_message') {
-    return renderMassMessageFlow(data);
+    html = '<div class="node-panel-card"><div class="npc-icon blue"><i class="ri-time-line"></i></div>触发条件</div>' +
+           '<div class="node-panel-card"><div class="npc-icon blue"><i class="ri-group-line"></i></div>筛选分群</div>' +
+           '<div class="node-panel-card"><div class="npc-icon green"><i class="ri-play-circle-line"></i></div>创建群发</div>';
   } else if (type === 'welcome_message') {
-    return renderWelcomeMessageFlow(data);
+    html = '<div class="node-panel-card"><div class="npc-icon orange"><i class="ri-flashlight-line"></i></div>触发条件</div>' +
+           '<div class="node-panel-card"><div class="npc-icon purple"><i class="ri-git-branch-line"></i></div>选择器(IF)</div>' +
+           '<div class="node-panel-card"><div class="npc-icon green"><i class="ri-hand-heart-line"></i></div>发送欢迎语</div>';
   }
-  return '';
+  list.innerHTML = html;
 }
 
-function renderMassMessageFlow(data) {
-  const triggerMode = strategyFormState.triggerMode || 'timed';
-  const freq = strategyFormState.triggerFrequency || '每天';
-  const time = strategyFormState.triggerTime || '10:00';
-  const event = strategyFormState.triggerEvent || 'add_wechat';
-
-  // Build trigger node content
-  let triggerContent = '';
-  if (triggerMode === 'timed') {
-    triggerContent = `
-      <div class="mini-radio-group" id="flow-trigger-mode-group">
-        <div class="mini-radio-btn ${triggerMode==='timed'?'active':''}" onclick="switchFlowTriggerMode('timed')">定时</div>
-        <div class="mini-radio-btn ${triggerMode==='event'?'active':''}" onclick="switchFlowTriggerMode('event')">事件</div>
-      </div>
-      <div id="flow-trigger-config" style="margin-top:8px">
-        ${renderFlowTimerConfig(freq, time)}
-      </div>`;
-  } else {
-    triggerContent = `
-      <div class="mini-radio-group" id="flow-trigger-mode-group">
-        <div class="mini-radio-btn ${triggerMode==='timed'?'active':''}" onclick="switchFlowTriggerMode('timed')">定时</div>
-        <div class="mini-radio-btn ${triggerMode==='event'?'active':''}" onclick="switchFlowTriggerMode('event')">事件</div>
-      </div>
-      <div id="flow-trigger-config" style="margin-top:8px">
-        ${renderFlowEventConfig(event)}
-      </div>`;
+function initCanvasDefaultNodes(type) {
+  if (type === 'mass_message') {
+    canvasNodes = [
+      { id: 'trigger_1', type: 'trigger_mass', title: '触发条件', x: 100, y: 200, data: { triggerMode: strategyFormState.triggerMode || 'timed', triggerFrequency: strategyFormState.triggerFrequency || '每天', triggerTime: strategyFormState.triggerTime || '10:00', triggerEvent: strategyFormState.triggerEvent || 'add_wechat' } },
+      { id: 'segment_1', type: 'segment', title: '筛选分群', x: 440, y: 200, data: { segmentIds: strategySelectedSegments.slice() } },
+      { id: 'mass_send_1', type: 'mass_send', title: '创建群发', x: 780, y: 200, data: { templateId: strategyFormState.templateId || '' } }
+    ];
+    canvasEdges = [
+      { id: 'e1', from: 'trigger_1', to: 'segment_1', fromPort: 'out', toPort: 'in' },
+      { id: 'e2', from: 'segment_1', to: 'mass_send_1', fromPort: 'out', toPort: 'in' }
+    ];
+  } else if (type === 'welcome_message') {
+    var condEnabled = strategyFormState.conditionEnabled;
+    var conditions = [];
+    if (condEnabled && strategyBranches.length > 0) {
+      strategyBranches.forEach(function(b, i) {
+        conditions.push({ value: b.conditionValue || '', templateId: b.templateId || '', isDefault: !!b.isDefault });
+      });
+    }
+    if (conditions.length === 0) {
+      conditions = [{ value: '', templateId: strategyFormState.welcomeTemplateId || '', isDefault: true }];
+    }
+    canvasNodes = [
+      { id: 'trigger_w1', type: 'trigger_welcome', title: '触发条件', x: 100, y: 250, data: {} },
+      { id: 'selector_1', type: 'selector', title: '选择器(IF)', x: 440, y: 200, data: { conditions: conditions } },
+      { id: 'welcome_default_1', type: 'welcome', title: '发送欢迎语-默认', x: 800, y: 250, data: { templateId: strategyFormState.welcomeTemplateId || '' } }
+    ];
+    canvasEdges = [
+      { id: 'ew1', from: 'trigger_w1', to: 'selector_1', fromPort: 'out', toPort: 'in' },
+      { id: 'ew2', from: 'selector_1', to: 'welcome_default_1', fromPort: 'default-out', toPort: 'in' }
+    ];
+    // Create welcome nodes for non-default conditions
+    var condNodes = canvasNodes[1].data.conditions;
+    condNodes.forEach(function(cond, idx) {
+      if (!cond.isDefault && condNodes.length > 1) {
+        var wNodeId = 'welcome_cond_' + idx;
+        canvasNodes.push({ id: wNodeId, type: 'welcome', title: '发送欢迎语-' + (cond.value || '条件' + (idx + 1)), x: 800, y: 200 + idx * 140, data: { templateId: cond.templateId || '' } });
+        canvasEdges.push({ id: 'ewc' + idx, from: 'selector_1', to: wNodeId, fromPort: 'cond-' + idx, toPort: 'in' });
+      }
+    });
   }
-
-  // Build segment node content - interactive multi-select
-  const segs = strategySelectedSegments;
-  let segmentContent = '';
-  if (segs.length > 0) {
-    segmentContent = `<div class="segment-tags">${segs.map(id => {
-      const seg = store.segments.find(s => s.id === id);
-      return seg ? `<span class="tag">${seg.name}<i class="ri-close-line" style="margin-left:4px;cursor:pointer;font-size:12px" onclick="removeStrategySegment(${id})"></i></span>` : '';
-    }).join('')}</div>
-    <div style="margin-top:8px;font-size:13px;color:#333;font-weight:500">预计发送客户数：${getStrategySegmentEstimate()} 人</div>`;
-  } else {
-    segmentContent = `<div class="empty-segment">请选择目标分群</div>`;
-  }
-
-  // Build execute node content with template selection
-  const templateOptions = store.templates.map(t => `<option value="${t.id}" ${strategyFormState.templateId==t.id?'selected':''}>${t.name}</option>`).join('');
-
-  return `
-    <div id="strategy-flow-container" class="strategy-flow">
-      <div class="flow-node flow-node-trigger">
-        <div class="flow-node-header"><i class="ri-time-line"></i> 触发条件</div>
-        <div class="node-content">${triggerContent}</div>
-      </div>
-      <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
-      <div class="flow-node flow-node-segment">
-        <div class="flow-node-header"><i class="ri-group-line"></i> 筛选分群</div>
-        <div class="node-content">
-          <div style="margin-bottom:8px">
-            <select multiple style="width:260px;height:auto;min-height:60px;border:1px solid #d9d9d9;border-radius:4px;padding:4px" onchange="handleStrategySegmentChange(this)">
-              ${store.segments.map(s => `<option value="${s.id}" ${strategySelectedSegments.includes(s.id)?'selected':''}>${s.name} (${SEGMENT_CUSTOMER_COUNTS[s.name]||0}人)</option>`).join('')}
-            </select>
-          </div>
-          <div class="segment-tags">
-            ${strategySelectedSegments.map(id => {
-              const seg = store.segments.find(s=>s.id===id);
-              return seg ? `<span class="tag">${seg.name}<i class="ri-close-line" style="margin-left:4px;cursor:pointer;font-size:12px" onclick="removeStrategySegment(${id})"></i></span>` : '';
-            }).join('')}
-          </div>
-          ${strategySelectedSegments.length > 0 ? `<div style="margin-top:8px;font-size:13px;color:#333;font-weight:500">预计发送客户数：${getStrategySegmentEstimate()} 人</div>` : '<div class="empty-segment">请选择目标分群</div>'}
-        </div>
-      </div>
-      <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
-      <div class="flow-node flow-node-execute">
-        <div class="flow-node-header"><i class="ri-play-circle-line"></i> 执行</div>
-        <div class="node-content">
-          <div style="margin-bottom:8px;display:flex;align-items:center;gap:4px">
-            <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.templateId=this.value;updateTemplatePreview(this.value)">
-              <option value="">请选择消息模板</option>
-              ${templateOptions}
-            </select>
-            <a style="color:#1890ff;font-size:12px;cursor:pointer;white-space:nowrap" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
-          </div>
-          <div id="template-preview-card"></div>
-          <div style="font-weight:500;color:#333;margin-top:8px">创建群发</div>
-          <div class="node-desc">触发条件满足时，自动为筛选后的客户创建群发任务</div>
-        </div>
-      </div>
-    </div>`;
 }
 
-function renderWelcomeMessageFlow(data) {
-  const condEnabled = strategyFormState.conditionEnabled || false;
+function renderCanvas() {
+  var nodesLayer = document.getElementById('canvas-nodes-layer');
+  var edgesLayer = document.getElementById('canvas-edges-layer');
+  if (!nodesLayer || !edgesLayer) return;
 
-  // Build execute node content based on condition branch state
-  let executeContent = '';
-  if (condEnabled) {
-    executeContent = `
-      <div class="node-content">
-        <div style="font-weight:500;color:#333">发送欢迎语</div>
-        <div class="node-desc">各分支已连接独立的发送欢迎语节点，请分别配置模板</div>
-        <div style="margin-top:8px;padding:8px;background:#f0f2f5;border-radius:4px;font-size:12px;color:#666">
-          <i class="ri-information-line" style="color:#1890ff"></i> 根据条件分支配置
-        </div>
-      </div>`;
-  } else {
-    const welcomeTemplateOptions = store.templates.map(t => `<option value="${t.id}" ${strategyFormState.welcomeTemplateId==t.id?'selected':''}>${t.name}</option>`).join('');
-    executeContent = `
-      <div class="node-content">
-        <div class="welcome-exec-area">
-          <div class="exec-title"><i class="ri-hand-heart-line"></i> 发送欢迎语</div>
-          <div style="display:flex;align-items:center;gap:4px">
-            <select style="width:220px;height:32px;border:1px solid #d9d9d9;border-radius:4px;padding:0 8px" onchange="strategyFormState.welcomeTemplateId=this.value;updateWelcomeTemplatePreview(this.value)">
-              <option value="">请选择欢迎语模板</option>
-              ${welcomeTemplateOptions}
-            </select>
-            <a class="new-template-link" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
-          </div>
-          <div id="welcome-template-preview-card"></div>
-          <div class="exec-desc">所有加微成功的客户将收到此欢迎语</div>
-        </div>
-      </div>`;
+  // Apply transform
+  var transform = 'translate(' + canvasPanX + 'px,' + canvasPanY + 'px) scale(' + canvasZoom + ')';
+  nodesLayer.style.transform = transform;
+  edgesLayer.style.transform = transform;
+
+  // Render nodes
+  var nodesHtml = '';
+  canvasNodes.forEach(function(node) {
+    nodesHtml += renderCanvasNode(node);
+  });
+  nodesLayer.innerHTML = nodesHtml;
+
+  // Render edges
+  renderCanvasEdges();
+
+  // Update zoom label
+  var zoomLabel = document.getElementById('zoom-label');
+  if (zoomLabel) zoomLabel.textContent = Math.round(canvasZoom * 100) + '%';
+}
+
+function renderCanvasNode(node) {
+  var isSelected = selectedNodeId === node.id;
+  var cls = 'canvas-node' + (isSelected ? ' selected' : '');
+  var headerCls = '';
+  var icon = '';
+  var bodyHtml = '';
+  var portOutHtml = '<div class="conn-port port-out" data-node="' + node.id + '" data-port="out"></div>';
+  var portInHtml = '<div class="conn-port port-in" data-node="' + node.id + '" data-port="in"></div>';
+
+  switch (node.type) {
+    case 'trigger_mass':
+      headerCls = 'type-trigger-blue';
+      icon = 'ri-time-line';
+      bodyHtml = renderTriggerMassBody(node);
+      break;
+    case 'trigger_welcome':
+      headerCls = 'type-trigger-orange';
+      icon = 'ri-flashlight-line';
+      bodyHtml = '<div style="font-weight:500;color:#333;margin-bottom:4px">加微成功</div><div style="font-size:12px;color:#999">客户添加企业微信后自动触发</div>';
+      break;
+    case 'segment':
+      headerCls = 'type-segment';
+      icon = 'ri-group-line';
+      bodyHtml = renderSegmentBody(node);
+      break;
+    case 'mass_send':
+      headerCls = 'type-mass-send';
+      icon = 'ri-play-circle-line';
+      bodyHtml = renderMassSendBody(node);
+      break;
+    case 'selector':
+      headerCls = 'type-selector';
+      icon = 'ri-git-branch-line';
+      bodyHtml = renderSelectorBody(node);
+      portOutHtml = ''; // Selector has multiple ports rendered in body
+      break;
+    case 'welcome':
+      headerCls = 'type-welcome';
+      icon = 'ri-hand-heart-line';
+      bodyHtml = renderWelcomeBody(node);
+      break;
+    default:
+      headerCls = 'type-trigger-blue';
+      icon = 'ri-question-line';
   }
 
-  return `
-    <div id="strategy-flow-container" class="strategy-flow">
-      <div class="flow-node flow-node-welcome-trigger">
-        <div class="flow-node-header"><i class="ri-flashlight-line"></i> 触发条件</div>
-        <div class="node-content">
-          <div style="font-weight:500;color:#333">加微成功</div>
-          <div class="node-desc">客户添加企业微信后自动触发</div>
-        </div>
-      </div>
-      <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
-      <div class="flow-node flow-node-condition" style="padding-bottom:8px">
-        <div class="flow-node-header">
-          <i class="ri-git-branch-line"></i> 条件分支
-          <div style="margin-left:auto">
-            <label class="condition-switch">
-              <input type="checkbox" ${condEnabled?'checked':''} onchange="toggleConditionBranch(this.checked)">
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="node-content" id="condition-branch-content">
-          ${condEnabled ? renderBranchConfigArea() : '<div class="node-desc">开启后，根据客户加微时的项目匹配不同的欢迎语</div>'}
-        </div>
-      </div>
-      <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
-      <div class="flow-node flow-node-execute">
-        <div class="flow-node-header"><i class="ri-play-circle-line"></i> 执行</div>
-        ${executeContent}
-      </div>
-      <div class="flow-arrow"><i class="ri-arrow-right-line"></i></div>
-      <div class="flow-node flow-node-end">
-        <div class="flow-node-header"><i class="ri-stop-circle-line"></i> 结束</div>
-        <div class="node-content">
-          <div class="node-desc">策略执行完成</div>
-        </div>
-      </div>
-    </div>`;
+  return '<div class="' + cls + '" id="cnode-' + node.id + '" data-node-id="' + node.id + '" style="left:' + node.x + 'px;top:' + node.y + 'px">' +
+    portInHtml +
+    portOutHtml +
+    '<div class="canvas-node-header ' + headerCls + '">' +
+      '<i class="cnh-icon ' + icon + '"></i>' +
+      '<span class="cnh-title">' + node.title + '</span>' +
+      '<button class="cnh-menu" onclick="event.stopPropagation();showNodeContextMenu(\'' + node.id + '\',event)"><i class="ri-more-2-fill"></i></button>' +
+    '</div>' +
+    '<div class="canvas-node-body">' + bodyHtml + '</div>' +
+  '</div>';
 }
 
-function renderFlowTimerConfig(freq, time) {
-  let configHtml = '';
-  if (freq === '每天') {
-    configHtml = `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-      <span style="font-size:12px;color:#999">频率</span>
-      <select id="flow-freq" onchange="switchFlowFreq(this.value)" style="width:80px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-        <option value="每天" selected>每天</option><option value="每周">每周</option><option value="每月">每月</option>
-      </select>
-      <input type="time" id="flow-time" value="${time}" style="width:100px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-    </div>`;
-  } else if (freq === '每周') {
-    configHtml = `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-      <span style="font-size:12px;color:#999">频率</span>
-      <select id="flow-freq" onchange="switchFlowFreq(this.value)" style="width:80px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-        <option value="每天">每天</option><option value="每周" selected>每周</option><option value="每月">每月</option>
-      </select>
-      <select id="flow-weekday" style="width:70px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-        <option>周一</option><option>周二</option><option>周三</option><option>周四</option><option>周五</option><option>周六</option><option>周日</option>
-      </select>
-      <input type="time" id="flow-time" value="${time}" style="width:100px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-    </div>`;
-  } else {
-    configHtml = `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-      <span style="font-size:12px;color:#999">频率</span>
-      <select id="flow-freq" onchange="switchFlowFreq(this.value)" style="width:80px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-        <option value="每天">每天</option><option value="每周">每周</option><option value="每月" selected>每月</option>
-      </select>
-      <select id="flow-monthday" style="width:70px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-        ${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}日</option>`).join('')}
-      </select>
-      <input type="time" id="flow-time" value="${time}" style="width:100px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-    </div>`;
-  }
-  return configHtml;
-}
-
-function renderFlowEventConfig(event) {
-  return `<div style="margin-top:4px">
-    <select id="flow-event" style="width:160px;height:28px;font-size:12px;border:1px solid #d9d9d9;border-radius:4px;padding:0 4px">
-      <option value="add_wechat" ${event==='add_wechat'?'selected':''}>加微成功</option>
-      <option value="before_schedule" ${event==='before_schedule'?'selected':''}>到排客时间前1h</option>
-    </select>
-  </div>`;
-}
-
-function switchFlowTriggerMode(mode) {
-  strategyFormState.triggerMode = mode;
-  const group = document.getElementById('flow-trigger-mode-group');
-  group.querySelectorAll('.mini-radio-btn').forEach(b => b.classList.remove('active'));
-  const idx = mode === 'timed' ? 0 : 1;
-  group.querySelectorAll('.mini-radio-btn')[idx].classList.add('active');
-
-  const configArea = document.getElementById('flow-trigger-config');
+function renderTriggerMassBody(node) {
+  var d = node.data;
+  var mode = d.triggerMode || 'timed';
+  var radioHtml = '<div class="mini-radio-group" id="trigger-mode-' + node.id + '">' +
+    '<div class="mini-radio-btn ' + (mode === 'timed' ? 'active' : '') + '" onclick="switchCanvasTriggerMode(\'' + node.id + '\',\'timed\')">定时</div>' +
+    '<div class="mini-radio-btn ' + (mode === 'event' ? 'active' : '') + '" onclick="switchCanvasTriggerMode(\'' + node.id + '\',\'event\')">事件</div>' +
+  '</div>';
+  var configHtml = '';
   if (mode === 'timed') {
-    strategyFormState.triggerFrequency = '每天';
-    strategyFormState.triggerTime = '10:00';
-    configArea.innerHTML = renderFlowTimerConfig('每天', '10:00');
+    var freq = d.triggerFrequency || '每天';
+    var time = d.triggerTime || '10:00';
+    configHtml = '<div style="margin-top:6px;display:flex;align-items:center;gap:6px">' +
+      '<select style="width:70px" onchange="updateNodeData(\'' + node.id + '\',\'triggerFrequency\',this.value);refreshNodeBody(\'' + node.id + '\')">' +
+        '<option value="每天"' + (freq === '每天' ? ' selected' : '') + '>每天</option>' +
+        '<option value="每周"' + (freq === '每周' ? ' selected' : '') + '>每周</option>' +
+        '<option value="每月"' + (freq === '每月' ? ' selected' : '') + '>每月</option>' +
+      '</select>' +
+      '<input type="time" value="' + time + '" style="width:100px" onchange="updateNodeData(\'' + node.id + '\',\'triggerTime\',this.value)">' +
+    '</div>';
   } else {
-    strategyFormState.triggerEvent = 'add_wechat';
-    configArea.innerHTML = renderFlowEventConfig('add_wechat');
+    var evt = d.triggerEvent || 'add_wechat';
+    configHtml = '<div style="margin-top:6px">' +
+      '<select style="width:160px" onchange="updateNodeData(\'' + node.id + '\',\'triggerEvent\',this.value)">' +
+        '<option value="add_wechat"' + (evt === 'add_wechat' ? ' selected' : '') + '>加微成功</option>' +
+        '<option value="before_schedule"' + (evt === 'before_schedule' ? ' selected' : '') + '>到排客时间前1h</option>' +
+      '</select>' +
+    '</div>';
   }
+  return radioHtml + configHtml;
 }
 
-function switchFlowFreq(freq) {
-  strategyFormState.triggerFrequency = freq;
-  strategyFormState.triggerTime = '10:00';
-  const configArea = document.getElementById('flow-trigger-config');
-  configArea.innerHTML = renderFlowTimerConfig(freq, '10:00');
+function renderSegmentBody(node) {
+  var segIds = node.data.segmentIds || [];
+  var tagsHtml = '';
+  if (segIds.length > 0) {
+    tagsHtml = '<div class="segment-tags">' + segIds.map(function(id) {
+      var seg = store.segments.find(function(s) { return s.id === id; });
+      return seg ? '<span class="tag">' + seg.name + '<i class="ri-close-line" style="margin-left:4px;cursor:pointer;font-size:11px" onclick="removeCanvasSegment(\'' + node.id + '\',' + id + ')"></i></span>' : '';
+    }).join('') + '</div>';
+    var total = segIds.reduce(function(sum, id) {
+      var seg = store.segments.find(function(s) { return s.id === id; });
+      return sum + (seg ? (SEGMENT_CUSTOMER_COUNTS[seg.name] || 0) : 0);
+    }, 0);
+    tagsHtml += '<div class="segment-estimate">预计发送客户数：' + total + ' 人</div>';
+  } else {
+    tagsHtml = '<div style="color:#999;font-size:12px;text-align:center;padding:8px 0">请选择目标分群</div>';
+  }
+  return '<div style="margin-bottom:6px">' +
+    '<select multiple style="width:100%;height:auto;min-height:50px;border:1px solid #d9d9d9;border-radius:4px;padding:2px 4px;font-size:12px" onchange="handleCanvasSegmentChange(\'' + node.id + '\',this)">' +
+      store.segments.map(function(s) { return '<option value="' + s.id + '"' + (segIds.indexOf(s.id) >= 0 ? ' selected' : '') + '>' + s.name + ' (' + (SEGMENT_CUSTOMER_COUNTS[s.name] || 0) + '人)</option>'; }).join('') +
+    '</select>' +
+  '</div>' + tagsHtml;
 }
 
-function toggleConditionBranch(enabled) {
-  strategyFormState.conditionEnabled = enabled;
-  if (enabled) {
-    // Ensure at least a default branch exists
-    const hasDefault = strategyBranches.some(b => b.isDefault);
-    if (!hasDefault) {
-      strategyBranches.push({ conditionField: '加微项目', conditionValue: '', templateId: '', isDefault: true, id: Date.now() });
+function renderMassSendBody(node) {
+  var tplId = node.data.templateId || '';
+  var tplOptions = '<option value="">请选择消息模板</option>' +
+    store.templates.map(function(t) { return '<option value="' + t.id + '"' + (tplId == t.id ? ' selected' : '') + '>' + t.name + '</option>'; }).join('');
+  var previewHtml = '';
+  if (tplId) {
+    var tpl = store.templates.find(function(t) { return t.id == tplId; });
+    if (tpl) {
+      var attachCount = tpl.attachments ? tpl.attachments.length : 0;
+      previewHtml = '<div class="tpl-preview" id="tpl-preview-' + node.id + '">' +
+        '<div class="tp-name">' + tpl.name + '</div>' +
+        '<div class="tp-content">' + (tpl.content || '').substring(0, 30) + '...</div>' +
+        (attachCount > 0 ? '<div class="tp-attach"><span>附件: ' + attachCount + '个</span></div>' : '') +
+      '</div>';
     }
   }
-  // Re-render the entire flow so execute node updates correctly
-  const flowContainer = document.getElementById('strategy-flow-container');
-  if (flowContainer) flowContainer.innerHTML = renderWelcomeMessageFlow();
+  return '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">' +
+    '<select style="flex:1;min-width:140px" onchange="updateNodeData(\'' + node.id + '\',\'templateId\',this.value);strategyFormState.templateId=this.value;refreshNodeBody(\'' + node.id + '\')">' + tplOptions + '</select>' +
+    '<a class="new-tpl-link" onclick="showMessage(\'info\',\'新窗口打开消息模板新增页\')">+ 新建</a>' +
+  '</div>' +
+  previewHtml +
+  '<div style="font-weight:500;color:#333;margin-top:8px;font-size:12px">触发条件满足时，自动为筛选后的客户创建群发任务</div>';
 }
 
-function renderBranchConfigArea() {
-  // Build template options HTML (reused across rows)
-  const templateOptionsHtml = store.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-
-  // Separate normal branches and default branch
-  const normalBranches = strategyBranches.filter(b => !b.isDefault);
-  const defaultBranch = strategyBranches.find(b => b.isDefault);
-
-  let html = `
-    <div style="margin-bottom:8px;font-size:13px;color:#666">
-      <span style="font-weight:500;color:#333">按加微项目分流</span>
-    </div>
-    <table class="flow-distribution-table">
-      <thead>
-        <tr>
-          <th class="col-condition">条件项目</th>
-          <th class="col-match">匹配值</th>
-          <th class="col-template">发送欢迎语</th>
-          <th class="col-action">操作</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-  // Normal branches
-  normalBranches.forEach((b) => {
-    const realIdx = strategyBranches.indexOf(b);
-    const selectedTemplate = b.templateId || '';
-    const tpl = selectedTemplate ? store.templates.find(t => t.id == selectedTemplate) : null;
-    const previewHtml = tpl ? `
-      <div class="template-preview-card">
-        <div class="preview-name">\u{1F4CE} ${tpl.name}</div>
-        <div class="preview-content">${(tpl.content||'').substring(0,30)}...</div>
-        ${tpl.attachments && tpl.attachments.length > 0 ? `<div class="preview-attach"><span>附件: ${tpl.attachments.length}个</span></div>` : ''}
-      </div>` : '';
-
-    html += `
-      <tr>
-        <td class="col-condition">加微项目</td>
-        <td class="col-match">
-          <input type="text" class="match-input" placeholder="请输入项目编号" value="${b.conditionValue||''}" onchange="strategyBranches[${realIdx}].conditionValue=this.value">
-        </td>
-        <td class="col-template">
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-            <select class="template-select" onchange="strategyBranches[${realIdx}].templateId=this.value;updateBranchTemplatePreview(${realIdx},this.value)">
-              <option value="">请选择欢迎语模板</option>
-              ${store.templates.map(t => `<option value="${t.id}" ${selectedTemplate==t.id?'selected':''}>${t.name}</option>`).join('')}
-            </select>
-            <a class="new-template-link" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
-          </div>
-          <div id="branch-preview-${realIdx}">${previewHtml}</div>
-        </td>
-        <td class="col-action">
-          <span class="delete-btn" onclick="removeBranch(${realIdx})" title="删除"><i class="ri-delete-bin-line"></i></span>
-        </td>
-      </tr>`;
+function renderSelectorBody(node) {
+  var conditions = node.data.conditions || [];
+  var html = '<div class="selector-conditions" id="selector-conds-' + node.id + '">';
+  conditions.forEach(function(cond, idx) {
+    var label = cond.isDefault ? '默认' : '条件' + (idx + 1);
+    var labelColor = cond.isDefault ? 'color:#999' : 'color:#8b5cf6;font-weight:500';
+    html += '<div class="selector-condition-row" data-cond-idx="' + idx + '">' +
+      '<span class="scr-label" style="' + labelColor + '">' + label + '</span>' +
+      (cond.isDefault ? '<span style="flex:1;font-size:12px;color:#999">-</span>' :
+        '<input class="scr-input" placeholder="请输入匹配值" value="' + (cond.value || '') + '" onchange="updateSelectorCondValue(\'' + node.id + '\',' + idx + ',this.value)">') +
+      (!cond.isDefault ? '<button class="scr-delete" onclick="removeSelectorCondition(\'' + node.id + '\',' + idx + ')"><i class="ri-close-line"></i></button>' : '') +
+      '<div class="conn-port scr-port" style="background:' + (cond.isDefault ? '#999' : '#8b5cf6') + '" data-node="' + node.id + '" data-port="cond-' + idx + '"></div>' +
+    '</div>';
   });
-
-  // Default branch row
-  const defaultTemplateId = defaultBranch ? (defaultBranch.templateId || '') : '';
-  const defaultTpl = defaultTemplateId ? store.templates.find(t => t.id == defaultTemplateId) : null;
-  const defaultPreviewHtml = defaultTpl ? `
-    <div class="template-preview-card">
-      <div class="preview-name">\u{1F4CE} ${defaultTpl.name}</div>
-      <div class="preview-content">${(defaultTpl.content||'').substring(0,30)}...</div>
-      ${defaultTpl.attachments && defaultTpl.attachments.length > 0 ? `<div class="preview-attach"><span>附件: ${defaultTpl.attachments.length}个</span></div>` : ''}
-    </div>` : '';
-  const defaultIdx = strategyBranches.indexOf(defaultBranch);
-
-  html += `
-      <tr class="row-default">
-        <td class="col-condition" style="color:#999">默认</td>
-        <td class="col-match" style="color:#999">-</td>
-        <td class="col-template">
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-            <select class="template-select" onchange="strategyBranches[${defaultIdx}].templateId=this.value;updateBranchTemplatePreview(${defaultIdx},this.value)">
-              <option value="">请选择欢迎语模板</option>
-              ${store.templates.map(t => `<option value="${t.id}" ${defaultTemplateId==t.id?'selected':''}>${t.name}</option>`).join('')}
-            </select>
-            <a class="new-template-link" onclick="showMessage('info','新窗口打开消息模板新增页')">+ 新建模板</a>
-          </div>
-          <div id="branch-preview-${defaultIdx}">${defaultPreviewHtml}</div>
-        </td>
-        <td class="col-action">-</td>
-      </tr>`;
-
-  html += `
-      </tbody>
-    </table>`;
-
-  // Add distribution button (max 10 normal branches)
-  const normalCount = normalBranches.length;
-  if (normalCount < 10) {
-    html += `<button class="add-distribution-btn" onclick="addBranch()"><i class="ri-add-line"></i> 添加分流</button>`;
-  } else {
-    html += `<button class="add-distribution-btn" disabled><i class="ri-add-line"></i> 最多支持10条分流</button>`;
+  html += '</div>';
+  if (conditions.filter(function(c) { return !c.isDefault; }).length < 10) {
+    html += '<button class="selector-add-btn" onclick="addSelectorCondition(\'' + node.id + '\')"><i class="ri-add-line"></i> 添加条件</button>';
   }
-
   return html;
 }
 
-function addBranch() {
-  const normalCount = strategyBranches.filter(b => !b.isDefault).length;
-  if (normalCount >= 10) {
-    showMessage('warning', '最多支持10条分流');
+function renderWelcomeBody(node) {
+  var tplId = node.data.templateId || '';
+  var tplOptions = '<option value="">请选择欢迎语模板</option>' +
+    store.templates.map(function(t) { return '<option value="' + t.id + '"' + (tplId == t.id ? ' selected' : '') + '>' + t.name + '</option>'; }).join('');
+  var previewHtml = '';
+  if (tplId) {
+    var tpl = store.templates.find(function(t) { return t.id == tplId; });
+    if (tpl) {
+      var attachCount = tpl.attachments ? tpl.attachments.length : 0;
+      previewHtml = '<div class="tpl-preview">' +
+        '<div class="tp-name">' + tpl.name + '</div>' +
+        '<div class="tp-content">' + (tpl.content || '').substring(0, 30) + '...</div>' +
+        (attachCount > 0 ? '<div class="tp-attach"><span>附件: ' + attachCount + '个</span></div>' : '') +
+      '</div>';
+    }
+  }
+  return '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">' +
+    '<select style="flex:1;min-width:140px" onchange="updateNodeData(\'' + node.id + '\',\'templateId\',this.value);refreshNodeBody(\'' + node.id + '\')">' + tplOptions + '</select>' +
+    '<a class="new-tpl-link" onclick="showMessage(\'info\',\'新窗口打开消息模板新增页\')">+ 新建</a>' +
+  '</div>' + previewHtml;
+}
+
+function renderCanvasEdges() {
+  var svg = document.getElementById('canvas-svg');
+  if (!svg) return;
+  var paths = '';
+  canvasEdges.forEach(function(edge) {
+    var fromNode = canvasNodes.find(function(n) { return n.id === edge.from; });
+    var toNode = canvasNodes.find(function(n) { return n.id === edge.to; });
+    if (!fromNode || !toNode) return;
+
+    var fromX, fromY, toX, toY;
+    var fromNodeEl = document.getElementById('cnode-' + fromNode.id);
+    var toNodeEl = document.getElementById('cnode-' + toNode.id);
+    var fromW = 280, fromH = fromNodeEl ? fromNodeEl.offsetHeight : 120;
+    var toW = 280, toH = toNodeEl ? toNodeEl.offsetHeight : 120;
+
+    // Determine source port position
+    if (edge.fromPort === 'out') {
+      fromX = fromNode.x + fromW;
+      fromY = fromNode.y + fromH / 2;
+    } else if (edge.fromPort && edge.fromPort.indexOf('cond-') === 0) {
+      var condIdx = parseInt(edge.fromPort.split('-')[1]);
+      var condEl = fromNodeEl ? fromNodeEl.querySelector('[data-cond-idx="' + condIdx + '"]') : null;
+      if (condEl) {
+        fromX = fromNode.x + fromW;
+        fromY = fromNode.y + condEl.offsetTop + condEl.offsetHeight / 2;
+      } else {
+        fromX = fromNode.x + fromW;
+        fromY = fromNode.y + 40 + condIdx * 40;
+      }
+    } else if (edge.fromPort === 'default-out') {
+      var conds = fromNode.data.conditions || [];
+      fromX = fromNode.x + fromW;
+      fromY = fromNode.y + 40 + (conds.length - 1) * 40;
+    } else {
+      fromX = fromNode.x + fromW;
+      fromY = fromNode.y + fromH / 2;
+    }
+
+    // Target port position
+    toX = toNode.x;
+    toY = toNode.y + toH / 2;
+
+    // Bezier curve
+    var dx = Math.abs(toX - fromX) * 0.5;
+    dx = Math.max(dx, 60);
+    var d = 'M ' + fromX + ' ' + fromY + ' C ' + (fromX + dx) + ' ' + fromY + ', ' + (toX - dx) + ' ' + toY + ', ' + toX + ' ' + toY;
+    paths += '<path d="' + d + '" fill="none" stroke="#6366f1" stroke-width="2" stroke-opacity="0.6"/>';
+    // Arrowhead
+    paths += '<circle cx="' + toX + '" cy="' + toY + '" r="3" fill="#6366f1" fill-opacity="0.6"/>';
+  });
+  svg.innerHTML = paths;
+}
+
+function renderSelectorConditions(nodeId) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (!node) return;
+  var bodyEl = document.querySelector('#cnode-' + nodeId + ' .canvas-node-body');
+  if (bodyEl) bodyEl.innerHTML = renderSelectorBody(node);
+  renderCanvasEdges();
+}
+
+function addSelectorCondition(nodeId) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (!node) return;
+  var conds = node.data.conditions || [];
+  var normalCount = conds.filter(function(c) { return !c.isDefault; }).length;
+  if (normalCount >= 10) { showMessage('warning', '最多支持10条条件'); return; }
+  // Insert before default
+  var defaultIdx = conds.findIndex(function(c) { return c.isDefault; });
+  var newCond = { value: '', templateId: '', isDefault: false };
+  if (defaultIdx >= 0) {
+    conds.splice(defaultIdx, 0, newCond);
+  } else {
+    conds.push(newCond);
+  }
+  // Create welcome node for new condition
+  var wNodeId = 'welcome_cond_' + Date.now();
+  var condIdx = defaultIdx >= 0 ? defaultIdx : conds.length - 1;
+  canvasNodes.push({ id: wNodeId, type: 'welcome', title: '发送欢迎语-条件' + (condIdx + 1), x: 800, y: 200 + condIdx * 140, data: { templateId: '' } });
+  canvasEdges.push({ id: 'ewc_' + wNodeId, from: nodeId, to: wNodeId, fromPort: 'cond-' + condIdx, toPort: 'in' });
+  renderSelectorConditions(nodeId);
+  renderCanvas();
+}
+
+function removeSelectorCondition(nodeId, condIdx) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (!node) return;
+  var conds = node.data.conditions;
+  if (!conds || conds[condIdx].isDefault) return;
+  // Remove edge connected to this condition
+  canvasEdges = canvasEdges.filter(function(e) { return !(e.from === nodeId && e.fromPort === 'cond-' + condIdx); });
+  // Remove welcome node connected to this condition
+  var condPort = 'cond-' + condIdx;
+  var edgeToRemove = canvasEdges.find(function(e) { return e.from === nodeId && e.fromPort === condPort; });
+  // Already filtered above
+  // Remove the condition
+  conds.splice(condIdx, 1);
+  // Re-index edges for remaining conditions
+  canvasEdges.forEach(function(e) {
+    if (e.from === nodeId && e.fromPort && e.fromPort.indexOf('cond-') === 0) {
+      var oldIdx = parseInt(e.fromPort.split('-')[1]);
+      if (oldIdx > condIdx) {
+        e.fromPort = 'cond-' + (oldIdx - 1);
+      }
+    }
+  });
+  renderSelectorConditions(nodeId);
+  renderCanvas();
+}
+
+function addWelcomeNodeFromSelector(nodeId, condIdx) {
+  // Find if welcome node already exists for this condition
+  var existingEdge = canvasEdges.find(function(e) { return e.from === nodeId && e.fromPort === 'cond-' + condIdx; });
+  if (existingEdge) {
+    var existingNode = canvasNodes.find(function(n) { return n.id === existingEdge.to; });
+    if (existingNode) { selectedNodeId = existingNode.id; renderCanvas(); return; }
+  }
+  var wNodeId = 'welcome_cond_' + Date.now();
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  var yPos = node ? node.y + condIdx * 140 : 300;
+  canvasNodes.push({ id: wNodeId, type: 'welcome', title: '发送欢迎语-条件' + (condIdx + 1), x: 800, y: yPos, data: { templateId: '' } });
+  canvasEdges.push({ id: 'ewc_' + wNodeId, from: nodeId, to: wNodeId, fromPort: 'cond-' + condIdx, toPort: 'in' });
+  renderCanvas();
+}
+
+function showNodeContextMenu(nodeId, e) {
+  contextMenuNodeId = nodeId;
+  var menu = document.getElementById('node-context-menu');
+  if (!menu) return;
+  menu.style.display = 'block';
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  // Adjust if off screen
+  var rect = menu.getBoundingClientRect();
+  if (rect.right > window.innerWidth) menu.style.left = (e.clientX - rect.width) + 'px';
+  if (rect.bottom > window.innerHeight) menu.style.top = (e.clientY - rect.height) + 'px';
+  e.stopPropagation();
+}
+
+function hideNodeContextMenu() {
+  var menu = document.getElementById('node-context-menu');
+  if (menu) menu.style.display = 'none';
+  contextMenuNodeId = null;
+}
+
+function deleteCanvasNode(nodeId) {
+  if (!nodeId) return;
+  // Don't allow deleting trigger nodes
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (!node) return;
+  if (node.type === 'trigger_mass' || node.type === 'trigger_welcome') {
+    showMessage('warning', '触发条件节点不可删除');
+    hideNodeContextMenu();
     return;
   }
-  const newBranch = { conditionField: '加微项目', conditionValue: '', templateId: '', isDefault: false, id: Date.now() };
-  // Insert before the default branch
-  const defaultIdx = strategyBranches.findIndex(b => b.isDefault);
-  if (defaultIdx >= 0) {
-    strategyBranches.splice(defaultIdx, 0, newBranch);
-  } else {
-    strategyBranches.push(newBranch);
-  }
-  const content = document.getElementById('condition-branch-content');
-  content.innerHTML = renderBranchConfigArea();
+  // Remove connected edges
+  canvasEdges = canvasEdges.filter(function(e) { return e.from !== nodeId && e.to !== nodeId; });
+  // Remove node
+  canvasNodes = canvasNodes.filter(function(n) { return n.id !== nodeId; });
+  if (selectedNodeId === nodeId) selectedNodeId = null;
+  hideNodeContextMenu();
+  renderCanvas();
 }
 
-function removeBranch(index) {
-  const branch = strategyBranches[index];
-  if (!branch || branch.isDefault) return; // Cannot delete default branch
-  if (branch.templateId) {
-    showModal('确认删除', '确定删除该分流吗？删除后不可恢复。', () => {
-      strategyBranches.splice(index, 1);
-      const content = document.getElementById('condition-branch-content');
-      content.innerHTML = renderBranchConfigArea();
-    });
-  } else {
-    strategyBranches.splice(index, 1);
-    const content = document.getElementById('condition-branch-content');
-    content.innerHTML = renderBranchConfigArea();
+function duplicateCanvasNode() {
+  if (!contextMenuNodeId) return;
+  var node = canvasNodes.find(function(n) { return n.id === contextMenuNodeId; });
+  if (!node) return;
+  var newNode = JSON.parse(JSON.stringify(node));
+  newNode.id = node.type + '_' + Date.now();
+  newNode.x += 40;
+  newNode.y += 40;
+  newNode.title = newNode.title + ' (副本)';
+  canvasNodes.push(newNode);
+  hideNodeContextMenu();
+  renderCanvas();
+}
+
+function updateNodeData(nodeId, key, value) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (node) node.data[key] = value;
+}
+
+function refreshNodeBody(nodeId) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (!node) return;
+  var bodyEl = document.querySelector('#cnode-' + nodeId + ' .canvas-node-body');
+  if (!bodyEl) return;
+  switch (node.type) {
+    case 'trigger_mass': bodyEl.innerHTML = renderTriggerMassBody(node); break;
+    case 'segment': bodyEl.innerHTML = renderSegmentBody(node); break;
+    case 'mass_send': bodyEl.innerHTML = renderMassSendBody(node); break;
+    case 'selector': bodyEl.innerHTML = renderSelectorBody(node); break;
+    case 'welcome': bodyEl.innerHTML = renderWelcomeBody(node); break;
+  }
+  renderCanvasEdges();
+}
+
+function switchCanvasTriggerMode(nodeId, mode) {
+  updateNodeData(nodeId, 'triggerMode', mode);
+  strategyFormState.triggerMode = mode;
+  refreshNodeBody(nodeId);
+}
+
+function handleCanvasSegmentChange(nodeId, selectEl) {
+  var segIds = Array.from(selectEl.selectedOptions).map(function(o) { return parseInt(o.value); });
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (node) node.data.segmentIds = segIds;
+  strategySelectedSegments = segIds;
+  refreshNodeBody(nodeId);
+}
+
+function removeCanvasSegment(nodeId, segId) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (node) {
+    node.data.segmentIds = (node.data.segmentIds || []).filter(function(id) { return id !== segId; });
+  }
+  strategySelectedSegments = strategySelectedSegments.filter(function(id) { return id !== segId; });
+  refreshNodeBody(nodeId);
+}
+
+function updateSelectorCondValue(nodeId, condIdx, value) {
+  var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+  if (node && node.data.conditions && node.data.conditions[condIdx]) {
+    node.data.conditions[condIdx].value = value;
   }
 }
 
-window.updateBranchTemplatePreview = function(branchIndex, templateId) {
-  const previewEl = document.getElementById('branch-preview-' + branchIndex);
+// Canvas zoom/pan controls
+function canvasZoomIn() {
+  canvasZoom = Math.min(2, canvasZoom + 0.1);
+  renderCanvas();
+}
+function canvasZoomOut() {
+  canvasZoom = Math.max(0.3, canvasZoom - 0.1);
+  renderCanvas();
+}
+function canvasResetView() {
+  canvasZoom = 1; canvasPanX = 0; canvasPanY = 0;
+  renderCanvas();
+}
+function canvasFitView() {
+  if (canvasNodes.length === 0) { canvasResetView(); return; }
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  canvasNodes.forEach(function(n) {
+    if (n.x < minX) minX = n.x;
+    if (n.y < minY) minY = n.y;
+    if (n.x + 280 > maxX) maxX = n.x + 280;
+    if (n.y + 150 > maxY) maxY = n.y + 150;
+  });
+  var area = document.getElementById('strategy-canvas-area');
+  if (!area) return;
+  var aw = area.clientWidth - 80;
+  var ah = area.clientHeight - 80;
+  var bw = maxX - minX;
+  var bh = maxY - minY;
+  canvasZoom = Math.min(1.5, Math.min(aw / bw, ah / bh));
+  canvasZoom = Math.max(0.3, canvasZoom);
+  canvasPanX = (area.clientWidth - bw * canvasZoom) / 2 - minX * canvasZoom + 20;
+  canvasPanY = (area.clientHeight - bh * canvasZoom) / 2 - minY * canvasZoom + 20;
+  renderCanvas();
+}
+
+function setupCanvasInteractions() {
+  var area = document.getElementById('strategy-canvas-area');
+  if (!area) return;
+
+  // Node dragging
+  area.addEventListener('mousedown', function(e) {
+    hideNodeContextMenu();
+    var nodeEl = e.target.closest('.canvas-node');
+    if (nodeEl && !e.target.closest('.cnh-menu') && !e.target.closest('select') && !e.target.closest('input') && !e.target.closest('button') && !e.target.closest('.new-tpl-link')) {
+      var nodeId = nodeEl.getAttribute('data-node-id');
+      var node = canvasNodes.find(function(n) { return n.id === nodeId; });
+      if (!node) return;
+      selectedNodeId = nodeId;
+      // Highlight selected
+      document.querySelectorAll('.canvas-node').forEach(function(el) { el.classList.remove('selected'); });
+      nodeEl.classList.add('selected');
+      nodeEl.classList.add('dragging');
+      _canvasDragging = { nodeId: nodeId, startX: e.clientX, startY: e.clientY, origX: node.x, origY: node.y };
+      e.preventDefault();
+    } else if (!e.target.closest('.canvas-node') && !e.target.closest('.canvas-toolbar') && !e.target.closest('.node-context-menu')) {
+      // Start panning
+      selectedNodeId = null;
+      document.querySelectorAll('.canvas-node').forEach(function(el) { el.classList.remove('selected'); });
+      _canvasPanning = { startX: e.clientX, startY: e.clientY, origPanX: canvasPanX, origPanY: canvasPanY };
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (_canvasDragging) {
+      var dx = (e.clientX - _canvasDragging.startX) / canvasZoom;
+      var dy = (e.clientY - _canvasDragging.startY) / canvasZoom;
+      var node = canvasNodes.find(function(n) { return n.id === _canvasDragging.nodeId; });
+      if (node) {
+        node.x = Math.max(0, _canvasDragging.origX + dx);
+        node.y = Math.max(0, _canvasDragging.origY + dy);
+        var nodeEl = document.getElementById('cnode-' + node.id);
+        if (nodeEl) {
+          nodeEl.style.left = node.x + 'px';
+          nodeEl.style.top = node.y + 'px';
+        }
+        renderCanvasEdges();
+      }
+    }
+    if (_canvasPanning) {
+      canvasPanX = _canvasPanning.origPanX + (e.clientX - _canvasPanning.startX);
+      canvasPanY = _canvasPanning.origPanY + (e.clientY - _canvasPanning.startY);
+      var nodesLayer = document.getElementById('canvas-nodes-layer');
+      var edgesLayer = document.getElementById('canvas-edges-layer');
+      var transform = 'translate(' + canvasPanX + 'px,' + canvasPanY + 'px) scale(' + canvasZoom + ')';
+      if (nodesLayer) nodesLayer.style.transform = transform;
+      if (edgesLayer) edgesLayer.style.transform = transform;
+    }
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (_canvasDragging) {
+      var nodeEl = document.getElementById('cnode-' + _canvasDragging.nodeId);
+      if (nodeEl) nodeEl.classList.remove('dragging');
+      _canvasDragging = null;
+    }
+    if (_canvasPanning) {
+      _canvasPanning = null;
+    }
+  });
+
+  // Zoom with mouse wheel
+  area.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var delta = e.deltaY > 0 ? -0.08 : 0.08;
+    var newZoom = Math.max(0.3, Math.min(2, canvasZoom + delta));
+    // Zoom towards mouse position
+    var rect = area.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    canvasPanX = mx - (mx - canvasPanX) * (newZoom / canvasZoom);
+    canvasPanY = my - (my - canvasPanY) * (newZoom / canvasZoom);
+    canvasZoom = newZoom;
+    renderCanvas();
+  }, { passive: false });
+
+  // Click on selector condition port to create welcome node
+  area.addEventListener('dblclick', function(e) {
+    var port = e.target.closest('[data-port]');
+    if (port && port.getAttribute('data-port') && port.getAttribute('data-port').indexOf('cond-') === 0) {
+      var nodeId = port.getAttribute('data-node');
+      var condIdx = parseInt(port.getAttribute('data-port').split('-')[1]);
+      addWelcomeNodeFromSelector(nodeId, condIdx);
+    }
+  });
+
+  // Close context menu on click outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.node-context-menu') && !e.target.closest('.cnh-menu')) {
+      hideNodeContextMenu();
+    }
+  });
+}
+
+// Preserved helper functions
+window.updateTemplatePreview = function(templateId) {
+  var previewEl = document.getElementById('template-preview-card');
   if (!previewEl) return;
   if (!templateId) { previewEl.innerHTML = ''; return; }
-  const tpl = store.templates.find(t => t.id == templateId);
+  var tpl = store.templates.find(function(t) { return t.id == templateId; });
   if (!tpl) { previewEl.innerHTML = ''; return; }
-  const attachCount = tpl.attachments ? tpl.attachments.length : 0;
-  previewEl.innerHTML = `<div class="template-preview-card">
-    <div class="preview-name">\u{1F4CE} ${tpl.name}</div>
-    <div class="preview-content">${(tpl.content||'').substring(0,30)}...</div>
-    ${attachCount > 0 ? `<div class="preview-attach"><span>附件: ${attachCount}个</span></div>` : ''}
-  </div>`;
+  var attachCount = tpl.attachments ? tpl.attachments.length : 0;
+  previewEl.innerHTML = '<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:4px;padding:8px 12px;margin-top:8px">' +
+    '<div style="font-size:13px;font-weight:500;color:#333;margin-bottom:4px">' + tpl.name + '</div>' +
+    '<div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (tpl.content || '').substring(0, 30) + '...</div>' +
+    (attachCount > 0 ? '<div style="margin-top:4px"><span style="background:#f0f2f5;color:#999;font-size:11px;padding:0 6px;border-radius:2px;line-height:18px;display:inline-block">附件: ' + attachCount + '个</span></div>' : '') +
+  '</div>';
+};
+
+window.updateWelcomeTemplatePreview = function(templateId) {
+  var previewEl = document.getElementById('welcome-template-preview-card');
+  if (!previewEl) return;
+  if (!templateId) { previewEl.innerHTML = ''; return; }
+  var tpl = store.templates.find(function(t) { return t.id == templateId; });
+  if (!tpl) { previewEl.innerHTML = ''; return; }
+  var attachCount = tpl.attachments ? tpl.attachments.length : 0;
+  previewEl.innerHTML = '<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:4px;padding:8px 12px;margin-top:8px">' +
+    '<div style="font-size:13px;font-weight:500;color:#333;margin-bottom:4px">' + tpl.name + '</div>' +
+    '<div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (tpl.content || '').substring(0, 30) + '...</div>' +
+    (attachCount > 0 ? '<div style="margin-top:4px"><span style="background:#f0f2f5;color:#999;font-size:11px;padding:0 6px;border-radius:2px;line-height:18px;display:inline-block">附件: ' + attachCount + '个</span></div>' : '') +
+  '</div>';
 };
 
 window.handleStrategySegmentChange = function(selectEl) {
-  strategySelectedSegments = Array.from(selectEl.selectedOptions).map(o => parseInt(o.value));
-  // Re-render the flow to update tags and estimate
-  const flowContainer = document.getElementById('strategy-flow-container');
-  if (flowContainer) flowContainer.innerHTML = renderMassMessageFlow();
+  strategySelectedSegments = Array.from(selectEl.selectedOptions).map(function(o) { return parseInt(o.value); });
 };
 
 window.removeStrategySegment = function(id) {
-  strategySelectedSegments = strategySelectedSegments.filter(sid => sid !== id);
-  const flowContainer = document.getElementById('strategy-flow-container');
-  if (flowContainer) flowContainer.innerHTML = renderMassMessageFlow();
+  strategySelectedSegments = strategySelectedSegments.filter(function(sid) { return sid !== id; });
 };
 
 window.getStrategySegmentEstimate = function() {
-  return strategySelectedSegments.reduce((sum, id) => {
-    const seg = store.segments.find(s => s.id === id);
+  return strategySelectedSegments.reduce(function(sum, id) {
+    var seg = store.segments.find(function(s) { return s.id === id; });
     return sum + (seg ? (SEGMENT_CUSTOMER_COUNTS[seg.name] || 0) : 0);
   }, 0);
 };
 
-window.updateTemplatePreview = function(templateId) {
-  const previewEl = document.getElementById('template-preview-card');
-  if (!previewEl) return;
-  if (!templateId) { previewEl.innerHTML = ''; return; }
-  const tpl = store.templates.find(t => t.id == templateId);
-  if (!tpl) { previewEl.innerHTML = ''; return; }
-  const attachCount = tpl.attachments ? tpl.attachments.length : 0;
-  previewEl.innerHTML = `<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:4px;padding:8px 12px;margin-top:8px">
-    <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:4px">\u{1F4CE} ${tpl.name}</div>
-    <div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(tpl.content||'').substring(0,30)}...</div>
-    ${attachCount > 0 ? `<div style="margin-top:4px"><span style="background:#f0f2f5;color:#999;font-size:11px;padding:0 6px;border-radius:2px;line-height:18px;display:inline-block">附件: ${attachCount}个</span></div>` : ''}
-  </div>`;
-};
-
-window.updateWelcomeTemplatePreview = function(templateId) {
-  const previewEl = document.getElementById('welcome-template-preview-card');
-  if (!previewEl) return;
-  if (!templateId) { previewEl.innerHTML = ''; return; }
-  const tpl = store.templates.find(t => t.id == templateId);
-  if (!tpl) { previewEl.innerHTML = ''; return; }
-  const attachCount = tpl.attachments ? tpl.attachments.length : 0;
-  previewEl.innerHTML = `<div style="background:#fafafa;border:1px solid #e8e8e8;border-radius:4px;padding:8px 12px;margin-top:8px">
-    <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:4px">\u{1F4CE} ${tpl.name}</div>
-    <div style="font-size:12px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(tpl.content||'').substring(0,30)}...</div>
-    ${attachCount > 0 ? `<div style="margin-top:4px"><span style="background:#f0f2f5;color:#999;font-size:11px;padding:0 6px;border-radius:2px;line-height:18px;display:inline-block">附件: ${attachCount}个</span></div>` : ''}
-  </div>`;
-};
-
 function updateStrategyNameCount() {
-  const input = document.getElementById('strategy-name');
-  const count = document.getElementById('strategy-name-count');
-  const len = input.value.length;
-  count.textContent = `${len}/50`;
-  if (len > 50) {
-    count.style.color = '#f5222d';
-  } else if (len >= 40) {
-    count.style.color = '#fa8c16';
-  } else {
-    count.style.color = '#999';
-  }
+  var input = document.getElementById('strategy-name');
+  if (!input) return;
+  var len = input.value.length;
+  if (len > 50) { input.style.borderColor = '#ef4444'; }
+  else if (len >= 40) { input.style.borderColor = '#fa8c16'; }
+  else { input.style.borderColor = ''; }
 }
 
 function updateStrategyDescCount() {
-  const input = document.getElementById('strategy-desc');
-  const count = document.getElementById('strategy-desc-count');
-  const len = input.value.length;
-  count.textContent = `${len}/200`;
-  if (len > 200) {
-    count.style.color = '#f5222d';
-  } else if (len >= 160) {
-    count.style.color = '#fa8c16';
-  } else {
-    count.style.color = '#999';
-  }
+  // No textarea in canvas mode, but keep for compatibility
 }
 
 function validateStrategyName() {
-  const input = document.getElementById('strategy-name');
-  const error = document.getElementById('strategy-name-error');
+  var input = document.getElementById('strategy-name');
+  if (!input) return false;
   if (!input.value.trim()) {
-    input.classList.add('error');
-    error.textContent = '请输入策略名称';
-    error.classList.remove('hidden');
+    input.style.borderColor = '#ef4444';
+    showMessage('warning', '请输入策略名称');
     return false;
   }
-  input.classList.remove('error');
-  error.classList.add('hidden');
+  input.style.borderColor = '';
   return true;
 }
 
 function saveStrategy(editId) {
-  // Validate name
-  const nameValid = validateStrategyName();
-  if (!nameValid) return;
+  var nameInput = document.getElementById('strategy-name');
+  if (!nameInput || !validateStrategyName()) return;
+  var name = nameInput.value.trim();
 
-  const name = document.getElementById('strategy-name').value.trim();
-  const description = document.getElementById('strategy-desc').value.trim();
-
-  // Validate strategy type
   if (!strategyFormState.strategyType) {
     showMessage('error', '请选择策略类型');
     return;
   }
 
-  // 群发策略校验
+  // Sync data from canvas nodes to form state
+  syncCanvasToFormState();
+
+  // Validation
   if (strategyFormState.strategyType === 'mass_message') {
-    if (strategySelectedSegments.length === 0) {
+    var segNode = canvasNodes.find(function(n) { return n.type === 'segment'; });
+    if (segNode && (!segNode.data.segmentIds || segNode.data.segmentIds.length === 0)) {
       showMessage('warning', '请选择至少一个分群');
       return;
     }
-    if (!strategyFormState.templateId) {
+    var sendNode = canvasNodes.find(function(n) { return n.type === 'mass_send'; });
+    if (sendNode && !sendNode.data.templateId) {
       showMessage('warning', '请选择消息模板');
       return;
     }
-    // 触发条件校验
-    const triggerMode = strategyFormState.triggerMode || 'timed';
-    if (triggerMode === 'timed') {
-      const freqEl = document.getElementById('flow-freq');
-      const timeEl = document.getElementById('flow-time');
-      if (freqEl) strategyFormState.triggerFrequency = freqEl.value;
-      if (timeEl) strategyFormState.triggerTime = timeEl.value;
-      if (!strategyFormState.triggerTime) {
-        showMessage('warning', '请配置触发条件');
-        return;
-      }
-    } else {
-      const eventEl = document.getElementById('flow-event');
-      if (eventEl) strategyFormState.triggerEvent = eventEl.value;
+    var triggerNode = canvasNodes.find(function(n) { return n.type === 'trigger_mass'; });
+    if (triggerNode) {
+      strategyFormState.triggerMode = triggerNode.data.triggerMode || 'timed';
+      strategyFormState.triggerFrequency = triggerNode.data.triggerFrequency || '每天';
+      strategyFormState.triggerTime = triggerNode.data.triggerTime || '10:00';
+      strategyFormState.triggerEvent = triggerNode.data.triggerEvent || 'add_wechat';
+    }
+    if (segNode) {
+      strategySelectedSegments = segNode.data.segmentIds || [];
+    }
+    if (sendNode) {
+      strategyFormState.templateId = sendNode.data.templateId || '';
     }
   }
 
-  // 欢迎语策略校验
   if (strategyFormState.strategyType === 'welcome_message') {
-    if (strategyFormState.conditionEnabled) {
-      // 检查每个分支是否配置了模板
-      const incomplete = strategyBranches.some(b => !b.templateId);
+    var selectorNode = canvasNodes.find(function(n) { return n.type === 'selector'; });
+    if (selectorNode) {
+      var conds = selectorNode.data.conditions || [];
+      var incomplete = conds.some(function(c) { return !c.templateId; });
+      // Check if welcome nodes have templates
+      canvasNodes.filter(function(n) { return n.type === 'welcome'; }).forEach(function(wn) {
+        if (!wn.data.templateId) incomplete = true;
+      });
       if (incomplete) {
         showMessage('warning', '请完善条件分支配置，每个分支需选择欢迎语模板');
         return;
       }
+      // Sync conditions back to branches
+      strategyBranches = conds.map(function(c) {
+        return { conditionField: '加微项目', conditionValue: c.value, templateId: c.templateId, isDefault: !!c.isDefault, id: Date.now() + Math.random() };
+      });
+      strategyFormState.conditionEnabled = conds.length > 1;
+      // Get default template
+      var defaultCond = conds.find(function(c) { return c.isDefault; });
+      if (defaultCond) strategyFormState.welcomeTemplateId = defaultCond.templateId;
     } else {
       if (!strategyFormState.welcomeTemplateId) {
         showMessage('warning', '请选择欢迎语模板');
@@ -3806,19 +4017,19 @@ function saveStrategy(editId) {
     }
   }
 
-  const actionTypeLabel = strategyFormState.strategyType === 'mass_message' ? '群发策略' : '欢迎语策略';
+  var segmentNames = strategySelectedSegments.map(function(id) {
+    var seg = store.segments.find(function(s) { return s.id === id; });
+    return seg ? seg.name : '';
+  }).filter(Boolean);
 
   if (editId) {
-    const s = store.strategies.find(x => x.id === editId);
+    var s = store.strategies.find(function(x) { return x.id === editId; });
     if (s) {
       s.name = name;
-      s.description = description;
+      s.description = strategyFormState.description;
       s.actionType = strategyFormState.strategyType;
-      s.segmentIds = [...strategySelectedSegments];
-      s.segmentNames = strategySelectedSegments.map(id => {
-        const seg = store.segments.find(s => s.id === id);
-        return seg ? seg.name : '';
-      }).filter(Boolean);
+      s.segmentIds = strategySelectedSegments.slice();
+      s.segmentNames = segmentNames;
       s.triggerMode = strategyFormState.triggerMode;
       s.triggerFrequency = strategyFormState.triggerFrequency;
       s.triggerTime = strategyFormState.triggerTime;
@@ -3827,22 +4038,21 @@ function saveStrategy(editId) {
       s.templateId = strategyFormState.templateId;
       s.welcomeTemplateId = strategyFormState.welcomeTemplateId;
       s.branches = JSON.parse(JSON.stringify(strategyBranches));
+      s.canvasNodes = JSON.parse(JSON.stringify(canvasNodes));
+      s.canvasEdges = JSON.parse(JSON.stringify(canvasEdges));
     }
     showMessage('success', '策略更新成功');
   } else {
     store.strategies.unshift({
       id: store.nextStrategyId++,
-      name,
-      description,
+      name: name,
+      description: strategyFormState.description,
       actionType: strategyFormState.strategyType,
       status: 'enabled',
       createdBy: '当前用户',
-      createdAt: new Date().toISOString().slice(0,16).replace('T',' '),
-      segmentIds: [...strategySelectedSegments],
-      segmentNames: strategySelectedSegments.map(id => {
-        const seg = store.segments.find(s => s.id === id);
-        return seg ? seg.name : '';
-      }).filter(Boolean),
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      segmentIds: strategySelectedSegments.slice(),
+      segmentNames: segmentNames,
       triggerMode: strategyFormState.triggerMode,
       triggerFrequency: strategyFormState.triggerFrequency,
       triggerTime: strategyFormState.triggerTime,
@@ -3850,12 +4060,51 @@ function saveStrategy(editId) {
       conditionEnabled: strategyFormState.conditionEnabled,
       templateId: strategyFormState.templateId,
       welcomeTemplateId: strategyFormState.welcomeTemplateId,
-      branches: JSON.parse(JSON.stringify(strategyBranches))
+      branches: JSON.parse(JSON.stringify(strategyBranches)),
+      canvasNodes: JSON.parse(JSON.stringify(canvasNodes)),
+      canvasEdges: JSON.parse(JSON.stringify(canvasEdges))
     });
     showMessage('success', '策略创建成功');
   }
   strategyFilterState = { name: '', status: 'all', actionType: 'all' };
   navigate('#/strategy/list');
+}
+
+function syncCanvasToFormState() {
+  // Sync segment selections from canvas segment node
+  var segNode = canvasNodes.find(function(n) { return n.type === 'segment'; });
+  if (segNode) {
+    strategySelectedSegments = segNode.data.segmentIds || [];
+  }
+  // Sync template from mass send node
+  var sendNode = canvasNodes.find(function(n) { return n.type === 'mass_send'; });
+  if (sendNode) {
+    strategyFormState.templateId = sendNode.data.templateId || '';
+  }
+  // Sync trigger from trigger node
+  var triggerNode = canvasNodes.find(function(n) { return n.type === 'trigger_mass'; });
+  if (triggerNode) {
+    strategyFormState.triggerMode = triggerNode.data.triggerMode || 'timed';
+    strategyFormState.triggerFrequency = triggerNode.data.triggerFrequency || '每天';
+    strategyFormState.triggerTime = triggerNode.data.triggerTime || '10:00';
+    strategyFormState.triggerEvent = triggerNode.data.triggerEvent || 'add_wechat';
+  }
+  // Sync welcome templates from welcome nodes
+  var selectorNode = canvasNodes.find(function(n) { return n.type === 'selector'; });
+  if (selectorNode) {
+    var conds = selectorNode.data.conditions || [];
+    canvasNodes.filter(function(n) { return n.type === 'welcome'; }).forEach(function(wn) {
+      // Find matching condition
+      var edge = canvasEdges.find(function(e) { return e.to === wn.id; });
+      if (edge && edge.fromPort && edge.fromPort.indexOf('cond-') === 0) {
+        var idx = parseInt(edge.fromPort.split('-')[1]);
+        if (conds[idx]) conds[idx].templateId = wn.data.templateId || '';
+      } else if (edge && edge.fromPort === 'default-out') {
+        var defCond = conds.find(function(c) { return c.isDefault; });
+        if (defCond) defCond.templateId = wn.data.templateId || '';
+      }
+    });
+  }
 }
 
 // ===== Template List =====
